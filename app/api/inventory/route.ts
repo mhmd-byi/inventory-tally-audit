@@ -22,8 +22,48 @@ export async function GET(request: Request) {
         const productId = searchParams.get('productId');
         const warehouseId = searchParams.get('warehouseId');
         const includeAudits = searchParams.get('includeAudits') === 'true';
+        const getFullList = searchParams.get('getFullList') === 'true';
 
         await dbConnect();
+
+        if (getFullList && warehouseId) {
+            // 1. Get Warehouse to find its organization
+            const warehouse = await Warehouse.findById(warehouseId);
+            if (!warehouse) return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 });
+
+            // 2. Get all products for that organization
+            const products = await Product.find({ organization: warehouse.organization }).sort({ name: 1 });
+
+            // 3. Get all stock records for this warehouse
+            const stocks = await Stock.find({ warehouse: warehouseId });
+
+            // 4. Get latest audit for each product in this warehouse
+            const latestAudits = await Audit.aggregate([
+                { $match: { warehouse: new mongoose.Types.ObjectId(warehouseId) } },
+                { $sort: { createdAt: -1 } },
+                {
+                    $group: {
+                        _id: "$product",
+                        latestAudit: { $first: "$$ROOT" }
+                    }
+                }
+            ]);
+
+            // 5. Merge
+            const inventory = products.map(product => {
+                const stock = stocks.find(s => s.product.toString() === product._id.toString());
+                const audit = latestAudits.find(a => a._id.toString() === product._id.toString());
+                return {
+                    product,
+                    quantity: stock ? stock.quantity : 0,
+                    lastAuditDate: stock ? stock.lastAuditDate : (audit ? audit.latestAudit.createdAt : null),
+                    lastAuditValue: audit ? audit.latestAudit.physicalQuantity : null,
+                    stockId: stock ? stock._id : null
+                };
+            });
+
+            return NextResponse.json(inventory);
+        }
 
         let query: any = {};
         if (productId) query.product = productId;
@@ -80,7 +120,7 @@ export async function POST(request: Request) {
             }
         }
 
-        // 3. Process based on Role
+        // 3. Process based on Role / Request Type
         let stock = await Stock.findOne({ product: productId, warehouse: warehouseId });
 
         // Ensure stock record exists
@@ -92,8 +132,10 @@ export async function POST(request: Request) {
             });
         }
 
-        if (session.user?.role === 'auditor') {
-            // AUDITOR: Save to Audit record, DO NOT delete or overwrite Stock quantity
+        const isAuditRequest = type === 'audit' || session.user?.role === 'auditor';
+
+        if (isAuditRequest) {
+            // SAVE to Audit record, DO NOT delete or overwrite Stock quantity
             const physicalVal = Number(quantity);
             const systemVal = stock.quantity;
             const discrepancy = physicalVal - systemVal;
@@ -119,7 +161,7 @@ export async function POST(request: Request) {
                 audit: auditEntry
             });
         } else {
-            // ADMIN/MANAGER: This is a system update (Stock level change)
+            // SYSTEM UPDATE (Stock level change)
             if (type === 'adjust') {
                 stock.quantity += Number(quantity);
             } else {

@@ -129,15 +129,18 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                     {statCards.map((stat, index) => {
                         const Icon = stat.icon;
+                        const isDiscrepancy = stat.title === 'Discrepancies' && Number(stat.value) > 0;
                         return (
                             <div key={index} className="bg-white border border-zinc-200 p-8 rounded-2xl hover:border-black transition-all group shadow-sm">
                                 <div className="flex items-center justify-between mb-6">
-                                    <div className="p-2 bg-zinc-50 rounded-lg group-hover:bg-black group-hover:text-white transition-all">
+                                    <div className={`p-2 rounded-lg transition-all ${isDiscrepancy ? 'bg-red-50 text-red-600' : 'bg-zinc-50 text-zinc-400'
+                                        } group-hover:bg-black group-hover:text-white`}>
                                         <Icon className="w-5 h-5" />
                                     </div>
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Stat 0{index + 1}</span>
                                 </div>
-                                <p className="text-4xl font-bold tracking-tight mb-1">{stat.value}</p>
+                                <p className={`text-4xl font-bold tracking-tight mb-1 ${isDiscrepancy ? 'text-red-600' : 'text-black'
+                                    }`}>{stat.value}</p>
                                 <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-wider">{stat.title}</h3>
                             </div>
                         );
@@ -191,10 +194,10 @@ export default function DashboardPage() {
                             </>
                         )}
 
-                        <button onClick={() => router.push('/dashboard/organizations')} className="w-full flex items-center justify-between p-6 border border-black bg-black text-white rounded-2xl hover:bg-zinc-800 transition-all shadow-lg group">
+                        <button onClick={() => router.push('/dashboard/warehouses')} className="w-full flex items-center justify-between p-6 border border-black bg-black text-white rounded-2xl hover:bg-zinc-800 transition-all shadow-lg group">
                             <div className="flex flex-col text-left">
                                 <span className="text-sm font-bold">New Audit</span>
-                                <span className="text-xs opacity-70">Begin physical count</span>
+                                <span className="text-xs opacity-70">Begin physical count at a location</span>
                             </div>
                             <Package className="w-5 h-5 text-white/50 group-hover:text-white transition-all" />
                         </button>

@@ -3,8 +3,9 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import DashboardHeader from '@/components/DashboardHeader';
-import { Warehouse as WarehouseIcon, MapPin, Building2 } from 'lucide-react';
+import { Warehouse as WarehouseIcon, MapPin, Building2, ClipboardList } from 'lucide-react';
 
 interface Organization {
     _id: string;
@@ -33,7 +34,7 @@ export default function WarehousesPage() {
     useEffect(() => {
         if (status === 'unauthenticated') {
             router.push('/login');
-        } else if (status === 'authenticated' && !['admin', 'store_manager'].includes(session?.user?.role || '')) {
+        } else if (status === 'authenticated' && !['admin', 'store_manager', 'auditor'].includes(session?.user?.role || '')) {
             router.push('/dashboard');
         }
     }, [status, session, router]);
@@ -59,10 +60,6 @@ export default function WarehousesPage() {
 
     if (status === 'loading') return null;
 
-    if (!session || !['admin', 'store_manager'].includes(session.user?.role || '')) {
-        return null;
-    }
-
     return (
         <div className="min-h-screen bg-white text-black font-sans">
             <DashboardHeader />
@@ -72,7 +69,7 @@ export default function WarehousesPage() {
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight">Warehouse Locations</h2>
                         <p className="text-zinc-500 font-medium text-sm mt-1">
-                            {session.user.role === 'admin' ? 'View all warehouse branches across the system' : 'View your assigned warehouse locations'}
+                            {session?.user.role === 'admin' ? 'View all warehouse branches across the system' : 'Select a warehouse to manage audit and stock'}
                         </p>
                     </div>
                 </div>
@@ -90,7 +87,7 @@ export default function WarehousesPage() {
                                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">Warehouse Name</th>
                                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">Location Code</th>
                                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Company</th>
-                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Status</th>
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-200">
@@ -119,9 +116,13 @@ export default function WarehousesPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-5 text-right">
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${wh.status === 'active' ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-400'}`}>
-                                                {wh.status}
-                                            </span>
+                                            <Link
+                                                href={`/dashboard/warehouses/${wh._id}`}
+                                                className="inline-flex items-center bg-black text-white px-4 py-2 hover:bg-zinc-800 rounded-lg text-xs font-bold transition-all shadow-sm"
+                                            >
+                                                <ClipboardList className="w-4 h-4 mr-2" />
+                                                Manage Audit
+                                            </Link>
                                         </td>
                                     </tr>
                                 ))

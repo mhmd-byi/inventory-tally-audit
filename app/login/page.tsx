@@ -33,14 +33,14 @@ export default function LoginPage() {
             });
 
             if (result?.error) {
-                setError('AUTHENTICATION_FAILED: INVALID CREDENTIALS');
+                setError('Login failing: Check your email and password');
                 setLoading(false);
             } else if (result?.ok) {
                 router.push('/dashboard');
                 router.refresh();
             }
         } catch (err) {
-            setError('SYSTEM_ERROR: UNEXPECTED DISRUPTION');
+            setError('System error: Please try again later');
             setLoading(false);
         }
     };
@@ -53,53 +53,53 @@ export default function LoginPage() {
                     <div className="inline-flex p-4 bg-black text-white mb-6">
                         <Package className="w-10 h-10" />
                     </div>
-                    <h1 className="text-4xl font-black uppercase tracking-tighter text-black">
-                        Inventory Control
+                    <h1 className="text-3xl font-bold text-black">
+                        Inventory Audit
                     </h1>
-                    <p className="text-zinc-400 font-black text-[10px] uppercase tracking-[0.4em] mt-4">
-                        Secure Access Terminal
+                    <p className="text-zinc-500 font-medium text-sm mt-3">
+                        Sign in to your account
                     </p>
                 </div>
 
                 {/* Entry Form */}
-                <div className="border-4 border-black p-8 sm:p-12">
-                    <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="border border-zinc-200 p-8 sm:p-10 shadow-sm rounded-xl">
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         {error && (
-                            <div className="border-2 border-dashed border-black p-4 text-[10px] font-black uppercase text-center tracking-widest">
+                            <div className="bg-zinc-50 border border-zinc-200 p-3 text-xs font-bold text-center text-black">
                                 {error}
                             </div>
                         )}
 
-                        <div className="space-y-4">
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                                Identity / Email
+                        <div className="space-y-2">
+                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                                Email Address
                             </label>
                             <div className="relative">
-                                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
+                                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
-                                    className="w-full pl-12 pr-4 py-4 border-2 border-zinc-100 focus:border-black outline-none font-black text-sm uppercase transition-all"
-                                    placeholder="USER@SYSTEM.NET"
+                                    className="w-full pl-12 pr-4 py-3 border border-zinc-200 focus:border-black outline-none font-medium text-sm transition-all rounded-lg"
+                                    placeholder="name@company.com"
                                 />
                             </div>
                         </div>
 
-                        <div className="space-y-4">
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                                Passphrase
+                        <div className="space-y-2">
+                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                                Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
-                                    className="w-full pl-12 pr-12 py-4 border-2 border-zinc-100 focus:border-black outline-none font-black text-sm transition-all"
-                                    placeholder="••••••••"
+                                    className="w-full pl-12 pr-12 py-3 border border-zinc-200 focus:border-black outline-none font-medium text-sm transition-all rounded-lg"
+                                    placeholder="Your password"
                                 />
                                 <button
                                     type="button"
@@ -114,23 +114,23 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-5 bg-black text-white font-black uppercase tracking-widest text-xs hover:bg-zinc-800 disabled:opacity-50 transition-all flex items-center justify-center"
+                            className="w-full py-4 bg-black text-white font-bold text-sm hover:bg-zinc-800 disabled:opacity-50 transition-all flex items-center justify-center rounded-lg"
                         >
                             {loading ? (
                                 <>
                                     <Loader2 className="w-4 h-4 mr-3 animate-spin" />
-                                    Authenticating...
+                                    Signing in...
                                 </>
                             ) : (
-                                'Establish Session'
+                                'Sign In'
                             )}
                         </button>
                     </form>
                 </div>
 
                 <div className="mt-8 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
-                        Operational Access Only | 256-Bit Encryption
+                    <p className="text-xs font-medium text-zinc-400">
+                        Secure Access System
                     </p>
                 </div>
             </div>

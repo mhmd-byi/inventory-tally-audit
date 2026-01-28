@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
-import { Warehouse as WarehouseIcon, MapPin, Activity, Building2, Search } from 'lucide-react';
+import { Warehouse as WarehouseIcon, MapPin, Building2 } from 'lucide-react';
 
 interface Organization {
     _id: string;
@@ -52,9 +52,9 @@ export default function WarehousesPage() {
                 const data = await response.json();
                 setWarehouses(data);
             } else {
-                setError((await response.json()).error || 'Sync Error');
+                setError((await response.json()).error || 'Failed to sync data');
             }
-        } catch (err) { setError('Failed to load directory'); } finally { setLoading(false); }
+        } catch (err) { setError('Failed to load warehouse directory'); } finally { setLoading(false); }
     };
 
     if (status === 'loading') return null;
@@ -64,60 +64,62 @@ export default function WarehousesPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white text-black">
+        <div className="min-h-screen bg-white text-black font-sans">
             <DashboardHeader />
 
-            <main className="max-w-7xl mx-auto px-4 py-12">
-                <div className="flex justify-between items-end mb-12 border-b-4 border-black pb-8">
+            <main className="max-w-7xl mx-auto px-4 py-10">
+                <div className="flex justify-between items-end mb-10 pb-6 border-b border-zinc-200">
                     <div>
-                        <h2 className="text-4xl font-black uppercase tracking-tighter">System / Network</h2>
-                        <p className="text-zinc-500 font-bold text-xs uppercase tracking-widest mt-2 px-1 border-l-2 border-black">
-                            {session.user.role === 'admin' ? 'Global Operational Node Directory' : 'Assigned Hub Mapping'}
+                        <h2 className="text-3xl font-bold tracking-tight">Warehouse Locations</h2>
+                        <p className="text-zinc-500 font-medium text-sm mt-1">
+                            {session.user.role === 'admin' ? 'View all warehouse branches across the system' : 'View your assigned warehouse locations'}
                         </p>
                     </div>
                 </div>
 
                 {error && (
-                    <div className="border-2 border-dashed border-black p-4 mb-8 text-[10px] font-black uppercase tracking-widest text-center">
+                    <div className="bg-red-50 border border-red-100 p-4 rounded-xl mb-8 font-bold text-xs text-red-600 uppercase tracking-widest text-center">
                         {error}
                     </div>
                 )}
 
-                <div className="border-4 border-black bg-white overflow-hidden">
+                <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-black text-white">
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Operational Node</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Logic Code</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-right">Owner Hub</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-right">Activity</th>
+                            <tr className="bg-zinc-50 border-b border-zinc-200">
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">Warehouse Name</th>
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">Location Code</th>
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Company</th>
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Status</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y-2 divide-zinc-100">
+                        <tbody className="divide-y divide-zinc-200">
                             {loading ? (
-                                <tr><td colSpan={4} className="px-8 py-12 text-center font-black uppercase tracking-widest text-[10px] italic">Accessing Lattice Data...</td></tr>
+                                <tr><td colSpan={4} className="px-6 py-12 text-center font-bold text-xs text-zinc-300 uppercase italic">Updating directory...</td></tr>
                             ) : warehouses.length === 0 ? (
-                                <tr><td colSpan={4} className="px-8 py-12 text-center font-black uppercase tracking-widest text-[10px] text-zinc-300">No nodes provisioned</td></tr>
+                                <tr><td colSpan={4} className="px-6 py-12 text-center font-bold text-xs text-zinc-300 uppercase">No warehouses registered</td></tr>
                             ) : (
                                 warehouses.map((wh) => (
                                     <tr key={wh._id} className="hover:bg-zinc-50 transition-colors">
-                                        <td className="px-8 py-6">
-                                            <div className="text-sm font-black uppercase tracking-tight">{wh.name}</div>
-                                            <div className="flex items-center text-[10px] font-bold text-zinc-400 mt-1 uppercase">
-                                                <MapPin className="w-3 h-3 mr-1.5" /> {wh.location || 'Unknown Coordinates'}
+                                        <td className="px-6 py-5">
+                                            <div className="text-base font-bold text-black">{wh.name}</div>
+                                            <div className="flex items-center text-xs font-medium text-zinc-400 mt-0.5">
+                                                <MapPin className="w-3 h-3 mr-1.5" /> {wh.location || 'Address not set'}
                                             </div>
                                         </td>
-                                        <td className="px-8 py-6 uppercase font-mono text-xs font-black">
-                                            <span className="border-2 border-zinc-100 px-2 py-0.5">{wh.code}</span>
+                                        <td className="px-6 py-5">
+                                            <span className="font-mono text-xs font-bold border border-zinc-200 bg-white px-2 py-0.5 rounded uppercase">
+                                                {wh.code}
+                                            </span>
                                         </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <div className="text-[10px] font-black uppercase tracking-widest inline-flex items-center space-x-2 border-b-2 border-black">
-                                                <Building2 className="w-3 h-3" />
+                                        <td className="px-6 py-5 text-right">
+                                            <div className="text-xs font-bold text-black inline-flex items-center space-x-2 border-b border-zinc-100 group">
+                                                <Building2 className="w-3 h-3 text-zinc-400 group-hover:text-black transition-colors" />
                                                 <span>{wh.organization?.name}</span>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <span className={`text-[9px] font-black uppercase tracking-widest border-2 px-3 py-1 ${wh.status === 'active' ? 'border-black bg-black text-white' : 'border-zinc-200 text-zinc-300'}`}>
+                                        <td className="px-6 py-5 text-right">
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${wh.status === 'active' ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-400'}`}>
                                                 {wh.status}
                                             </span>
                                         </td>

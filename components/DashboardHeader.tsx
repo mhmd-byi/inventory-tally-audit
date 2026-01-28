@@ -12,9 +12,9 @@ export default function DashboardHeader() {
 
     const navItems = [
         { name: 'Dashboard', href: '/dashboard', roles: ['admin', 'store_manager', 'auditor'], icon: LayoutDashboard },
-        { name: 'Organizations', href: '/dashboard/organizations', roles: ['admin', 'store_manager', 'auditor'], icon: Building2 },
+        { name: 'Companies', href: '/dashboard/organizations', roles: ['admin', 'store_manager', 'auditor'], icon: Building2 },
         { name: 'Warehouses', href: '/dashboard/warehouses', roles: ['admin', 'store_manager'], icon: Warehouse },
-        { name: 'Users', href: '/dashboard/users', roles: ['admin'], icon: Users },
+        { name: 'User Management', href: '/dashboard/users', roles: ['admin'], icon: Users },
     ];
 
     const filteredNavItems = navItems.filter(item =>
@@ -27,25 +27,25 @@ export default function DashboardHeader() {
                 <div className="flex justify-between items-center h-16">
                     {/* Left: App Name & Logo */}
                     <Link href="/dashboard" className="flex items-center space-x-3 hover:opacity-70 transition-opacity">
-                        <div className="p-1.5 bg-black rounded flex items-center justify-center">
+                        <div className="p-2 bg-black rounded-lg flex items-center justify-center">
                             <Package className="w-5 h-5 text-white" />
                         </div>
                         <div className="hidden sm:block">
-                            <h1 className="text-sm font-black text-black uppercase tracking-tighter">Inventory Control</h1>
+                            <h1 className="text-base font-bold text-black tracking-tight">Inventory Audit</h1>
                         </div>
                     </Link>
 
                     {/* Middle: Navigation */}
-                    <nav className="hidden md:flex items-center space-x-2">
+                    <nav className="hidden md:flex items-center space-x-1">
                         {filteredNavItems.map((item) => {
                             const Icon = item.icon;
                             return (
                                 <Link
                                     key={item.href}
                                     href={item.href}
-                                    className={`px-4 py-2 rounded-md text-xs font-bold uppercase tracking-widest transition-all inline-flex items-center space-x-2 ${pathname === item.href
-                                        ? 'bg-black text-white'
-                                        : 'text-zinc-500 hover:bg-zinc-100 hover:text-black'
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center space-x-2 ${pathname === item.href
+                                        ? 'bg-zinc-100 text-black'
+                                        : 'text-zinc-500 hover:bg-zinc-50 hover:text-black'
                                         }`}
                                 >
                                     <Icon className="w-4 h-4" />

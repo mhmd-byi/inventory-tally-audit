@@ -7,13 +7,9 @@ import DashboardHeader from '@/components/DashboardHeader';
 import {
     Users,
     UserPlus,
-    Shield,
-    Lock,
     X,
     Check,
     AlertCircle,
-    UserCheck,
-    Briefcase,
     Building2,
     Database,
     Trash2
@@ -105,11 +101,11 @@ export default function UsersPage() {
         setError(''); setSuccess(''); setSubmitting(true);
 
         if (formData.role === 'store_manager' && !formData.organizationId) {
-            setError('Scope required for Store Manager'); setSubmitting(false); return;
+            setError('Please select a company for the Store Manager'); setSubmitting(false); return;
         }
 
         if (formData.role === 'auditor' && formData.organizationIds.length === 0) {
-            setError('At least one hub required for Auditor'); setSubmitting(false); return;
+            setError('Please select at least one company for the Auditor'); setSubmitting(false); return;
         }
 
         try {
@@ -123,22 +119,22 @@ export default function UsersPage() {
             });
 
             if (response.ok) {
-                setSuccess(`Provisioned ${formData.name}`);
+                setSuccess(`User account created for ${formData.name}`);
                 setFormData({ name: '', email: '', password: '', role: 'auditor', organizationId: '', organizationIds: [] });
                 fetchUsers();
                 setTimeout(() => { setShowCreateModal(false); setSuccess(''); }, 2000);
             } else {
-                setError((await response.json()).error || 'Provisioning Failed');
+                setError((await response.json()).error || 'Account creation failed');
             }
         } catch (err) { setError('Unexpected Error'); } finally { setSubmitting(false); }
     };
 
     const deleteUser = async (userId: string) => {
-        if (!confirm('EXTERMINATE ACCOUNT? THIS ACTION IS FINAL.')) return;
+        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
         try {
             const response = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
             if (response.ok) setUsers(users.filter(u => u._id !== userId));
-            else setError((await response.json()).error || 'Cleanup Failed');
+            else setError((await response.json()).error || 'Deletion failed');
         } catch (err) { setError('Error'); }
     };
 
@@ -149,86 +145,86 @@ export default function UsersPage() {
     };
 
     return (
-        <div className="min-h-screen bg-white text-black">
+        <div className="min-h-screen bg-white text-black font-sans">
             <DashboardHeader />
 
-            <main className="max-w-7xl mx-auto px-4 py-12">
-                <div className="flex justify-between items-end mb-12 border-b-4 border-black pb-8">
+            <main className="max-w-7xl mx-auto px-4 py-10">
+                <div className="flex justify-between items-end mb-10 pb-6 border-b border-zinc-200">
                     <div>
-                        <h2 className="text-4xl font-black uppercase tracking-tighter">System / Identities</h2>
-                        <p className="text-zinc-500 font-bold text-xs uppercase tracking-widest mt-2">Access Provisioning Control</p>
+                        <h2 className="text-3xl font-bold tracking-tight">System Users</h2>
+                        <p className="text-zinc-500 font-medium text-sm mt-1">Manage accounts and platform access</p>
                     </div>
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="bg-black text-white px-10 py-5 font-black uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all flex items-center shadow-2xl"
+                        className="bg-black text-white px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all flex items-center shadow-sm"
                     >
-                        <UserPlus className="w-4 h-4 mr-3" /> Create Identity
+                        <UserPlus className="w-4 h-4 mr-2" /> Add New User
                     </button>
                 </div>
 
                 {success && (
-                    <div className="border-2 border-black p-4 mb-8 flex items-center space-x-4 bg-zinc-50">
-                        <Check className="w-6 h-6" />
-                        <span className="font-black text-xs uppercase tracking-widest">{success}</span>
+                    <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-xl mb-8 flex items-center space-x-3">
+                        <Check className="w-5 h-5 text-black" />
+                        <span className="font-bold text-sm text-black">{success}</span>
                     </div>
                 )}
 
                 {error && (
-                    <div className="border-2 border-dashed border-zinc-200 text-black p-4 mb-8 flex items-center space-x-4">
-                        <AlertCircle className="w-6 h-6" />
-                        <span className="font-bold text-xs uppercase tracking-widest">{error}</span>
+                    <div className="bg-red-50 border border-red-100 p-4 rounded-xl mb-8 flex items-center space-x-3">
+                        <AlertCircle className="w-5 h-5 text-red-500" />
+                        <span className="font-bold text-sm text-red-600">{error}</span>
                     </div>
                 )}
 
-                <div className="border-4 border-black bg-white overflow-hidden">
+                <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-black text-white">
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Identity Node</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Security Level</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Deployment Scope</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-right">Termination</th>
+                            <tr className="bg-zinc-50 border-b border-zinc-200">
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">Name & Email</th>
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">Account Type</th>
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">Company Access</th>
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y-2 divide-zinc-100">
+                        <tbody className="divide-y divide-zinc-200">
                             {users.map((user) => (
-                                <tr key={user._id} className="hover:bg-zinc-50 transition-colors group">
-                                    <td className="px-8 py-6">
+                                <tr key={user._id} className="hover:bg-zinc-50 transition-colors">
+                                    <td className="px-6 py-5">
                                         <div className="flex items-center">
-                                            <div className="w-10 h-10 border-2 border-black flex items-center justify-center font-black text-lg mr-5">
-                                                {user.name.charAt(0).toUpperCase()}
+                                            <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center font-bold text-black mr-4 uppercase text-sm border border-zinc-200">
+                                                {user.name.charAt(0)}
                                             </div>
                                             <div>
-                                                <div className="text-sm font-black uppercase tracking-tight">{user.name}</div>
-                                                <div className="text-[10px] font-bold text-zinc-400 mt-1 uppercase tracking-tight">{user.email}</div>
+                                                <div className="text-sm font-bold text-black">{user.name}</div>
+                                                <div className="text-xs font-medium text-zinc-400 mt-0.5">{user.email}</div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-8 py-6">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] border-2 border-zinc-100 px-3 py-1">
+                                    <td className="px-6 py-5">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider border border-zinc-200 px-2 py-0.5 rounded-md bg-white">
                                             {formatRole(user.role)}
                                         </span>
                                     </td>
-                                    <td className="px-8 py-6">
-                                        <div className="flex flex-wrap gap-2">
+                                    <td className="px-6 py-5">
+                                        <div className="flex flex-wrap gap-1.5">
                                             {user.role === 'admin' ? (
-                                                <span className="text-[10px] font-black uppercase tracking-widest border-l-4 border-black pl-3 text-zinc-400">Global Admin Scope</span>
+                                                <span className="text-[10px] font-bold uppercase text-zinc-400">All Companies</span>
                                             ) : user.role === 'auditor' ? (
                                                 user.organizations?.map((org: any) => (
-                                                    <span key={org._id} className="text-[9px] font-black border border-zinc-200 px-2 py-0.5 uppercase tracking-tighter">
+                                                    <span key={org._id} className="text-[10px] font-bold border border-zinc-100 px-1.5 py-0.5 rounded uppercase bg-zinc-50/50">
                                                         {org.name}
                                                     </span>
                                                 ))
                                             ) : (
-                                                <span className="text-[10px] font-black uppercase tracking-tight">
+                                                <span className="text-[10px] font-bold uppercase text-black">
                                                     {typeof user.organization === 'object' ? (user.organization as any)?.name : '-'}
                                                 </span>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-8 py-6 text-right">
+                                    <td className="px-6 py-5 text-right">
                                         <button
-                                            className="text-zinc-200 hover:text-black transition-all p-2 disabled:opacity-0"
+                                            className="text-zinc-300 hover:text-red-500 transition-all p-2 disabled:opacity-0"
                                             onClick={() => deleteUser(user._id)}
                                             disabled={user.email === session?.user?.email}
                                         >
@@ -243,47 +239,47 @@ export default function UsersPage() {
             </main>
 
             {showCreateModal && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-                    <div className="bg-white border-4 border-black max-w-xl w-full p-12 overflow-hidden shadow-2xl">
-                        <div className="flex justify-between items-center mb-12 border-b-2 border-black pb-6">
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-2xl overflow-hidden">
+                        <div className="flex justify-between items-center mb-10 border-b border-zinc-100 pb-6">
                             <div>
-                                <h3 className="text-3xl font-black uppercase tracking-tighter">Provisioning</h3>
-                                <p className="text-zinc-400 font-bold text-[10px] uppercase tracking-widest mt-1">Configure Identity Parameters</p>
+                                <h3 className="text-xl font-bold text-black">User Setup</h3>
+                                <p className="text-zinc-500 font-medium text-xs mt-1">Create new system account</p>
                             </div>
-                            <button onClick={() => setShowCreateModal(false)} className="text-black hover:opacity-50"><X className="w-10 h-10" /></button>
+                            <button onClick={() => setShowCreateModal(false)} className="text-zinc-300 hover:text-black transition-all p-2"><X className="w-8 h-8" /></button>
                         </div>
-                        <form onSubmit={handleCreateUser} className="space-y-8">
-                            <div className="space-y-6">
-                                <input type="text" placeholder="IDENTITY_NAME" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-6 py-4 border-2 border-zinc-100 focus:border-black outline-none font-black text-xs uppercase" />
-                                <input type="email" placeholder="SYSTEM_AUTH_EMAIL" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-6 py-4 border-2 border-zinc-100 focus:border-black outline-none font-black text-xs uppercase" />
-                                <input type="password" placeholder="SECURE_PHRASE" required value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full px-6 py-4 border-2 border-zinc-100 focus:border-black outline-none font-black text-xs uppercase" />
+                        <form onSubmit={handleCreateUser} className="space-y-6">
+                            <div className="space-y-4">
+                                <input type="text" placeholder="Full Name" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
+                                <input type="email" placeholder="Email Address" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
+                                <input type="password" placeholder="Account Password" required value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
 
-                                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-6 py-4 border-2 border-zinc-100 focus:border-black outline-none font-black text-xs uppercase appearance-none">
-                                    <option value="auditor">Field Auditor (Multi-Scope)</option>
-                                    <option value="store_manager">Store Manager (Localized)</option>
-                                    <option value="admin">Nexus Controller</option>
+                                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-bold text-sm appearance-none shadow-sm">
+                                    <option value="auditor">Auditor (Multi-Company)</option>
+                                    <option value="store_manager">Store Manager (Single Company)</option>
+                                    <option value="admin">System Admin</option>
                                 </select>
 
                                 {formData.role === 'store_manager' && (
-                                    <div className="border-4 border-black p-6 space-y-4">
-                                        <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center"><Building2 className="w-4 h-4 mr-3" /> Hub Assignment</h4>
-                                        <select required value={formData.organizationId} onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })} className="w-full px-4 py-3 border-2 border-zinc-100 font-bold text-xs uppercase outline-none">
-                                            <option value="">Select Primary Hub</option>
+                                    <div className="p-5 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-4">
+                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Company Assignment</h4>
+                                        <select required value={formData.organizationId} onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })} className="w-full px-3 py-2 border border-zinc-200 rounded-lg font-bold text-xs uppercase outline-none shadow-sm">
+                                            <option value="">Select Company</option>
                                             {organizations.map(org => <option key={org._id} value={org._id}>{org.name}</option>)}
                                         </select>
                                     </div>
                                 )}
 
                                 {formData.role === 'auditor' && (
-                                    <div className="border-4 border-black p-6 space-y-4">
-                                        <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center"><Database className="w-4 h-4 mr-3" /> Multi-Hub Access Scope</h4>
-                                        <div className="max-h-48 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
+                                    <div className="p-5 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-4">
+                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Select Allowed Companies</h4>
+                                        <div className="max-h-40 overflow-y-auto space-y-2.5 pr-2 custom-scrollbar">
                                             {organizations.map(org => (
-                                                <label key={org._id} className="flex items-center space-x-4 cursor-pointer group">
-                                                    <div onClick={() => handleOrgToggle(org._id)} className={`w-5 h-5 border-2 border-black flex items-center justify-center transition-all ${formData.organizationIds.includes(org._id) ? 'bg-black text-white' : 'bg-white'}`}>
-                                                        {formData.organizationIds.includes(org._id) && <Check className="w-4 h-4" />}
+                                                <label key={org._id} className="flex items-center space-x-3 cursor-pointer group">
+                                                    <div onClick={() => handleOrgToggle(org._id)} className={`w-5 h-5 border border-zinc-300 rounded flex items-center justify-center transition-all ${formData.organizationIds.includes(org._id) ? 'bg-black border-black text-white' : 'bg-white group-hover:border-black'}`}>
+                                                        {formData.organizationIds.includes(org._id) && <Check className="w-3 h-3" />}
                                                     </div>
-                                                    <span className="text-[10px] font-black uppercase tracking-tight group-hover:underline">{org.name}</span>
+                                                    <span className="text-xs font-bold text-black uppercase group-hover:text-black transition-colors">{org.name}</span>
                                                 </label>
                                             ))}
                                         </div>
@@ -291,8 +287,8 @@ export default function UsersPage() {
                                 )}
                             </div>
 
-                            <button type="submit" disabled={submitting} className="w-full py-6 bg-black text-white font-black uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all">
-                                {submitting ? 'Authenticating...' : 'Authorize Identity'}
+                            <button type="submit" disabled={submitting} className="w-full py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all shadow-md">
+                                {submitting ? 'Creating User...' : 'Establish Account'}
                             </button>
                         </form>
                     </div>

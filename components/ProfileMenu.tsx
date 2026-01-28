@@ -39,12 +39,12 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
     return (
         <Menu as="div" className="relative">
             <Menu.Button className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-zinc-100 transition-colors focus:outline-none">
-                <div className="w-8 h-8 bg-black rounded flex items-center justify-center text-white font-bold text-xs">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-bold text-xs uppercase">
                     {getInitials(user.name)}
                 </div>
                 <div className="hidden sm:block text-left">
-                    <p className="text-xs font-black text-black leading-none">{user.name}</p>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter mt-1">{formatRole(user.role)}</p>
+                    <p className="text-sm font-bold text-black leading-none">{user.name}</p>
+                    <p className="text-xs font-medium text-zinc-400 mt-1">{formatRole(user.role)}</p>
                 </div>
                 <ChevronDown className="w-4 h-4 text-zinc-400" />
             </Menu.Button>
@@ -58,10 +58,10 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
                 leaveFrom="transform opacity-100 scale-100"
                 leaveTo="transform opacity-0 scale-95"
             >
-                <Menu.Items className="absolute right-0 mt-2 w-64 origin-top-right bg-white rounded-xl shadow-2xl border border-zinc-200 focus:outline-none divide-y divide-zinc-100">
+                <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right bg-white rounded-xl shadow-lg border border-zinc-200 focus:outline-none divide-y divide-zinc-100">
                     <div className="px-5 py-4">
-                        <p className="text-sm font-black text-black">{user.name}</p>
-                        <p className="text-xs font-bold text-zinc-400 truncate">{user.email}</p>
+                        <p className="text-sm font-bold text-black">{user.name}</p>
+                        <p className="text-xs font-medium text-zinc-400 truncate">{user.email}</p>
                     </div>
 
                     <div className="py-2">
@@ -69,8 +69,8 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
                             {({ active }) => (
                                 <a
                                     href="/dashboard"
-                                    className={`${active ? 'bg-zinc-100' : ''
-                                        } flex items-center px-4 py-2.5 text-xs font-bold text-black uppercase tracking-widest`}
+                                    className={`${active ? 'bg-zinc-50' : ''
+                                        } flex items-center px-4 py-2 text-sm font-medium text-black`}
                                 >
                                     <LayoutDashboard className="w-4 h-4 mr-3 text-zinc-400" />
                                     Dashboard
@@ -83,11 +83,11 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
                                 {({ active }) => (
                                     <a
                                         href="/dashboard/users"
-                                        className={`${active ? 'bg-zinc-100' : ''
-                                            } flex items-center px-4 py-2.5 text-xs font-bold text-black uppercase tracking-widest`}
+                                        className={`${active ? 'bg-zinc-50' : ''
+                                            } flex items-center px-4 py-2 text-sm font-medium text-black`}
                                     >
                                         <Users className="w-4 h-4 mr-3 text-zinc-400" />
-                                        System Users
+                                        Manage Users
                                     </a>
                                 )}
                             </Menu.Item>
@@ -99,11 +99,11 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
                             {({ active }) => (
                                 <button
                                     onClick={handleSignOut}
-                                    className={`${active ? 'bg-zinc-100' : ''
-                                        } flex items-center w-full px-4 py-2.5 text-xs font-black text-black uppercase tracking-widest`}
+                                    className={`${active ? 'bg-zinc-50' : ''
+                                        } flex items-center w-full px-4 py-2 text-sm font-bold text-black`}
                                 >
                                     <LogOut className="w-4 h-4 mr-3 text-zinc-400" />
-                                    Terminate Session
+                                    Logout
                                 </button>
                             )}
                         </Menu.Item>

@@ -6,12 +6,14 @@ import { useEffect, useState } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import {
     Building2,
-    Warehouse,
+    Warehouse as WarehouseIcon,
     Package,
     Plus,
     X,
     Check,
-    Briefcase
+    Briefcase,
+    MapPin,
+    ClipboardList
 } from 'lucide-react';
 
 interface Organization {
@@ -34,22 +36,39 @@ interface Product {
     createdAt: string;
 }
 
-export default function OrganizationsPage() {
+interface Warehouse {
+    _id: string;
+    name: string;
+    code: string;
+    location?: string;
+    status: string;
+}
+
+export default function CompaniesPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+
+    // Product Modal States
     const [showProductModal, setShowProductModal] = useState(false);
     const [orgProducts, setOrgProducts] = useState<Product[]>([]);
     const [prodLoading, setProdLoading] = useState(false);
 
+    // Warehouse Modal States
+    const [showWarehouseModal, setShowWarehouseModal] = useState(false);
+    const [orgWarehouses, setOrgWarehouses] = useState<Warehouse[]>([]);
+    const [whLoading, setWhLoading] = useState(false);
+
     const [formData, setFormData] = useState({ name: '', code: '', email: '', phone: '', address: '' });
     const [prodFormData, setProdFormData] = useState({ name: '', sku: '', category: '', unit: 'pcs', description: '' });
+    const [whFormData, setWhFormData] = useState({ name: '', code: '', location: '' });
 
     const [error, setError] = useState('');
     const [prodError, setProdError] = useState('');
+    const [whError, setWhError] = useState('');
     const [success, setSuccess] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
@@ -77,7 +96,6 @@ export default function OrganizationsPage() {
             if (response.ok) {
                 const data = await response.json();
                 setOrganizations(data);
-                if (data.length === 1 && !isAdmin) setSelectedOrg(data[0]);
             }
         } catch (err) { setError('Failed to load companies'); } finally { setLoading(false); }
     };
@@ -91,6 +109,17 @@ export default function OrganizationsPage() {
                 setOrgProducts(all.filter((p: any) => p.organization?._id === orgId || p.organization === orgId));
             }
         } catch (err) { } finally { setProdLoading(false); }
+    };
+
+    const fetchWarehouses = async (orgId: string) => {
+        try {
+            setWhLoading(true);
+            const response = await fetch(`/api/warehouses?organizationId=${orgId}`);
+            if (response.ok) {
+                const data = await response.json();
+                setOrgWarehouses(data);
+            }
+        } catch (err) { } finally { setWhLoading(false); }
     };
 
     const handleCreateOrganization = async (e: React.FormEvent) => {
@@ -121,6 +150,21 @@ export default function OrganizationsPage() {
         } catch (err) { } finally { setSubmitting(false); }
     };
 
+    const handleCreateWarehouse = async (e: React.FormEvent) => {
+        e.preventDefault(); if (!selectedOrg) return; setSubmitting(true); setWhError('');
+        try {
+            const res = await fetch('/api/warehouses', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...whFormData, organization: selectedOrg._id }),
+            });
+            if (res.ok) {
+                setWhFormData({ name: '', code: '', location: '' });
+                fetchWarehouses(selectedOrg._id);
+            }
+            else { setWhError((await res.json()).error); }
+        } catch (err) { } finally { setSubmitting(false); }
+    };
+
     if (status === 'loading') return null;
 
     return (
@@ -132,7 +176,7 @@ export default function OrganizationsPage() {
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight">Companies</h2>
                         <p className="text-zinc-500 font-medium text-sm mt-1">
-                            Manage organization details and product catalogs
+                            Manage organizations, catalog registry and warehouse networks
                         </p>
                     </div>
                     {isAdmin && (
@@ -150,8 +194,8 @@ export default function OrganizationsPage() {
                         <thead>
                             <tr className="bg-zinc-50 border-b border-zinc-200">
                                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">Company Name</th>
-                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Warehouses</th>
-                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Products</th>
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Locations</th>
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Inventory Catalog</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-200">
@@ -159,22 +203,24 @@ export default function OrganizationsPage() {
                                 <tr key={org._id} className="hover:bg-zinc-50 transition-colors">
                                     <td className="px-6 py-5">
                                         <div className="text-base font-bold text-black">{org.name}</div>
-                                        <div className="text-xs font-medium text-zinc-400 mt-0.5">ID: {org.code}</div>
+                                        <div className="text-xs font-medium text-zinc-400 mt-0.5 uppercase tracking-widest font-mono">{org.code}</div>
                                     </td>
                                     <td className="px-6 py-5 text-right">
                                         <button
-                                            onClick={() => router.push('/dashboard/warehouses')}
-                                            className="border border-zinc-200 px-4 py-2 hover:border-black rounded-lg text-xs font-bold transition-all text-zinc-600"
+                                            onClick={() => { setSelectedOrg(org); fetchWarehouses(org._id); setShowWarehouseModal(true); }}
+                                            className="border border-zinc-200 px-4 py-2 hover:border-black rounded-lg text-xs font-bold transition-all text-zinc-600 inline-flex items-center"
                                         >
-                                            View Warehouses
+                                            <WarehouseIcon className="w-3 h-3 mr-2" />
+                                            Warehouses
                                         </button>
                                     </td>
                                     <td className="px-6 py-5 text-right">
                                         <button
                                             onClick={() => { setSelectedOrg(org); fetchProducts(org._id); setShowProductModal(true); }}
-                                            className="bg-black text-white px-4 py-2 hover:bg-zinc-800 rounded-lg text-xs font-bold transition-all"
+                                            className="bg-black text-white px-4 py-2 hover:bg-zinc-800 rounded-lg text-xs font-bold transition-all inline-flex items-center"
                                         >
-                                            View Products
+                                            <Package className="w-3 h-3 mr-2" />
+                                            Products
                                         </button>
                                     </td>
                                 </tr>
@@ -192,11 +238,75 @@ export default function OrganizationsPage() {
                         <form onSubmit={handleCreateOrganization} className="space-y-4">
                             <input type="text" placeholder="Company Name" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm" />
                             <input type="text" placeholder="Unique Code" required value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm" />
+                            {error && <p className="text-xs font-bold text-red-500 uppercase tracking-widest">{error}</p>}
+                            {success && <p className="text-xs font-bold text-green-500 uppercase tracking-widest">{success}</p>}
                             <div className="flex space-x-3 pt-6">
                                 <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 font-bold text-sm border border-zinc-200 py-3 rounded-xl hover:bg-zinc-50">Cancel</button>
-                                <button type="submit" className="flex-1 bg-black text-white py-3 font-bold text-sm rounded-xl hover:bg-zinc-800">Save Company</button>
+                                <button type="submit" disabled={submitting} className="flex-1 bg-black text-white py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50">Save Company</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Warehouse Management Modal */}
+            {showWarehouseModal && selectedOrg && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+                        <div className="p-8 border-b border-zinc-100 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-xl font-bold text-black">{selectedOrg.name} / Warehouse Network</h3>
+                                <p className="text-zinc-500 font-medium text-xs mt-1">Manage operational nodes and physical locations</p>
+                            </div>
+                            <button onClick={() => setShowWarehouseModal(false)} className="text-zinc-400 hover:text-black transition-all p-2"><X className="w-6 h-6" /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div className="space-y-6">
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center"><WarehouseIcon className="w-4 h-4 mr-3 text-black" /> Registered Branches</h4>
+                                {whLoading ? <div className="p-10 text-center font-medium text-zinc-400">Syncing directory...</div> : (
+                                    <div className="space-y-3">
+                                        {orgWarehouses.map(wh => (
+                                            <div key={wh._id} className="p-5 border border-zinc-100 bg-zinc-50/10 rounded-2xl flex justify-between items-center group hover:border-black transition-colors">
+                                                <div>
+                                                    <p className="font-bold text-sm">{wh.name}</p>
+                                                    <div className="flex items-center text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-1">
+                                                        <MapPin className="w-3 h-3 mr-1" /> {wh.location || 'Location Not Set'}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => router.push(`/dashboard/warehouses/${wh._id}`)}
+                                                    className="p-2.5 bg-zinc-50 text-black border border-zinc-200 rounded-xl hover:bg-black hover:text-white transition-all shadow-sm group-hover:shadow-md"
+                                                >
+                                                    <ClipboardList className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {orgWarehouses.length === 0 && <div className="py-20 text-center border border-dashed border-zinc-200 rounded-3xl text-zinc-300 font-bold text-xs uppercase">No warehouses registered for this company</div>}
+                                    </div>
+                                )}
+                            </div>
+                            {(isAdmin || isStoreManager) && (
+                                <div className="p-8 border border-zinc-200 bg-zinc-50/30 rounded-3xl self-start sticky top-0">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500"><Plus className="w-4 h-4 mr-3 text-black" /> Add Operational Node</h4>
+                                    <form onSubmit={handleCreateWarehouse} className="space-y-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Branch Name</label>
+                                            <input type="text" placeholder="e.g. Main Distribution Center" required value={whFormData.name} onChange={e => setWhFormData({ ...whFormData, name: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Unique Node Code</label>
+                                            <input type="text" placeholder="e.g. WH-001" required value={whFormData.code} onChange={e => setWhFormData({ ...whFormData, code: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">City / Region</label>
+                                            <input type="text" placeholder="e.g. Karachi South" required value={whFormData.location} onChange={e => setWhFormData({ ...whFormData, location: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
+                                        </div>
+                                        <button type="submit" disabled={submitting} className="w-full py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all shadow-md disabled:opacity-50">Initialize Warehouse</button>
+                                    </form>
+                                    {whError && <p className="mt-4 text-xs font-bold text-red-500 text-center uppercase tracking-widest">{whError}</p>}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
@@ -221,7 +331,7 @@ export default function OrganizationsPage() {
                                             <div key={p._id} className="p-5 border border-zinc-100 bg-zinc-50/30 rounded-2xl flex justify-between items-center group">
                                                 <div>
                                                     <p className="font-bold text-sm">{p.name}</p>
-                                                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mt-1">SKU: {p.sku}</p>
+                                                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mt-1 font-mono">SKU: {p.sku}</p>
                                                 </div>
                                                 <span className="text-[10px] font-bold text-zinc-300 uppercase">{p.unit}</span>
                                             </div>
@@ -236,7 +346,7 @@ export default function OrganizationsPage() {
                                     <form onSubmit={handleCreateProduct} className="space-y-4">
                                         <input type="text" placeholder="Item Name" required value={prodFormData.name} onChange={e => setProdFormData({ ...prodFormData, name: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
                                         <input type="text" placeholder="SKU / Unique Code" required value={prodFormData.sku} onChange={e => setProdFormData({ ...prodFormData, sku: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
-                                        <button type="submit" className="w-full py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all shadow-md">Add to Catalog</button>
+                                        <button type="submit" disabled={submitting} className="w-full py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all shadow-md disabled:opacity-50">Add to Catalog</button>
                                     </form>
                                     {prodError && <p className="mt-4 text-xs font-bold text-red-500 text-center uppercase tracking-widest">{prodError}</p>}
                                 </div>

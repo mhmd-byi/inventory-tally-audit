@@ -13,7 +13,8 @@ import {
     Package,
     ArrowRight,
     TrendingUp,
-    Clock
+    Clock,
+    Briefcase
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -194,20 +195,12 @@ export default function DashboardPage() {
                             </>
                         )}
 
-                        <button onClick={() => router.push('/dashboard/warehouses')} className="w-full flex items-center justify-between p-6 border border-black bg-black text-white rounded-2xl hover:bg-zinc-800 transition-all shadow-lg group">
+                        <button onClick={() => router.push('/dashboard/organizations')} className="w-full flex items-center justify-between p-6 border border-black bg-black text-white rounded-2xl hover:bg-zinc-800 transition-all shadow-lg group">
                             <div className="flex flex-col text-left">
-                                <span className="text-sm font-bold">New Audit</span>
+                                <span className="text-sm font-bold">New Audit Session</span>
                                 <span className="text-xs opacity-70">Begin physical count at a location</span>
                             </div>
-                            <Package className="w-5 h-5 text-white/50 group-hover:text-white transition-all" />
-                        </button>
-
-                        <button onClick={() => router.push('/dashboard/warehouses')} className="w-full flex items-center justify-between p-6 border border-zinc-200 bg-white rounded-2xl hover:border-black transition-all group shadow-sm">
-                            <div className="flex flex-col text-left">
-                                <span className="text-sm font-bold">Warehouse List</span>
-                                <span className="text-xs text-zinc-400">View all locations</span>
-                            </div>
-                            <Warehouse className="w-5 h-5 text-zinc-300 group-hover:text-black transition-all" />
+                            <Briefcase className="w-5 h-5 text-white/50 group-hover:text-white transition-all" />
                         </button>
                     </div>
                 </div>

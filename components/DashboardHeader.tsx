@@ -13,7 +13,6 @@ export default function DashboardHeader() {
     const navItems = [
         { name: 'Dashboard', href: '/dashboard', roles: ['admin', 'store_manager', 'auditor'], icon: LayoutDashboard },
         { name: 'Companies', href: '/dashboard/organizations', roles: ['admin', 'store_manager', 'auditor'], icon: Building2 },
-        { name: 'Warehouses', href: '/dashboard/warehouses', roles: ['admin', 'store_manager'], icon: Warehouse },
         { name: 'User Management', href: '/dashboard/users', roles: ['admin'], icon: Users },
     ];
 

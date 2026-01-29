@@ -13,7 +13,10 @@ import {
     Check,
     Briefcase,
     MapPin,
-    ClipboardList
+    ClipboardList,
+    Upload,
+    FileSpreadsheet,
+    AlertCircle
 } from 'lucide-react';
 
 interface Organization {
@@ -71,6 +74,8 @@ export default function CompaniesPage() {
     const [whError, setWhError] = useState('');
     const [success, setSuccess] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [bulkUploading, setBulkUploading] = useState(false);
+    const [bulkSummary, setBulkSummary] = useState<any>(null);
 
     const isAdmin = session?.user?.role === 'admin';
     const isStoreManager = session?.user?.role === 'store_manager';
@@ -163,6 +168,41 @@ export default function CompaniesPage() {
             }
             else { setWhError((await res.json()).error); }
         } catch (err) { } finally { setSubmitting(false); }
+    };
+
+    const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedOrg) return;
+
+        setBulkUploading(true);
+        setProdError('');
+        setBulkSummary(null);
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('organizationId', selectedOrg._id);
+
+        try {
+            const res = await fetch('/api/products/bulk', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                setBulkSummary(data.summary);
+                fetchProducts(selectedOrg._id);
+                setSuccess('Bulk upload processed successfully');
+            } else {
+                setProdError(data.error);
+            }
+        } catch (err) {
+            setProdError('Failed to upload file');
+        } finally {
+            setBulkUploading(false);
+            // Reset input
+            e.target.value = '';
+        }
     };
 
     if (status === 'loading') return null;
@@ -340,8 +380,8 @@ export default function CompaniesPage() {
                                     </div>
                                 )}
                             </div>
-                            {(isAdmin || isStoreManager) && (
-                                <div className="p-8 border border-zinc-100 bg-zinc-50 rounded-3xl self-start sticky top-0">
+                            <div className="space-y-6">
+                                <div className="p-8 border border-zinc-100 bg-zinc-50 rounded-3xl">
                                     <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500"><Plus className="w-4 h-4 mr-3 text-black" /> Add New Item</h4>
                                     <form onSubmit={handleCreateProduct} className="space-y-4">
                                         <input type="text" placeholder="Item Name" required value={prodFormData.name} onChange={e => setProdFormData({ ...prodFormData, name: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
@@ -350,7 +390,68 @@ export default function CompaniesPage() {
                                     </form>
                                     {prodError && <p className="mt-4 text-xs font-bold text-red-500 text-center uppercase tracking-widest">{prodError}</p>}
                                 </div>
-                            )}
+
+                                <div className="p-8 border border-dashed border-zinc-200 bg-white rounded-3xl">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest mb-6 flex items-center text-zinc-500"><FileSpreadsheet className="w-4 h-4 mr-3 text-black" /> Bulk Import</h4>
+                                    <p className="text-xs text-zinc-400 mb-6 font-medium">Upload Excel or CSV file with columns: <b>Name, SKU, Category, Unit</b></p>
+
+                                    <input
+                                        type="file"
+                                        id="bulk-upload"
+                                        className="hidden"
+                                        accept=".xlsx, .xls, .csv"
+                                        onChange={handleBulkUpload}
+                                        disabled={bulkUploading}
+                                    />
+                                    <label
+                                        htmlFor="bulk-upload"
+                                        className={`w-full py-4 border-2 border-zinc-100 rounded-xl flex items-center justify-center font-bold text-sm cursor-pointer hover:border-black transition-all ${bulkUploading ? 'opacity-50 cursor-wait' : ''}`}
+                                    >
+                                        {bulkUploading ? (
+                                            <>Processing...</>
+                                        ) : (
+                                            <><Upload className="w-4 h-4 mr-2" /> Select File</>
+                                        )}
+                                    </label>
+
+                                    <div className="mt-4 text-center">
+                                        <a
+                                            href="/templates/product_template.csv"
+                                            download
+                                            className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black transition-colors flex items-center justify-center"
+                                        >
+                                            <FileSpreadsheet className="w-3 h-3 mr-1.5" />
+                                            Download Data Template
+                                        </a>
+                                    </div>
+
+                                    {bulkSummary && (
+                                        <div className="mt-6 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
+                                            <h5 className="text-[10px] font-black uppercase tracking-widest text-black mb-3">Upload Summary</h5>
+                                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                                <div className="bg-white p-3 rounded-xl border border-zinc-100">
+                                                    <p className="text-[10px] font-bold text-zinc-400 uppercase mb-1">Success</p>
+                                                    <p className="text-lg font-bold text-black">{bulkSummary.success}</p>
+                                                </div>
+                                                <div className="bg-white p-3 rounded-xl border border-zinc-100">
+                                                    <p className="text-[10px] font-bold text-zinc-400 uppercase mb-1">Skipped</p>
+                                                    <p className="text-lg font-bold text-black">{bulkSummary.skipped}</p>
+                                                </div>
+                                            </div>
+                                            {bulkSummary.errors.length > 0 && (
+                                                <div className="mt-2 text-[10px] text-red-500 font-bold max-h-24 overflow-y-auto">
+                                                    {bulkSummary.errors.map((err: string, i: number) => (
+                                                        <div key={i} className="flex items-start mb-1">
+                                                            <AlertCircle className="w-3 h-3 mr-1 mt-0.5 flex-shrink-0" />
+                                                            {err}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

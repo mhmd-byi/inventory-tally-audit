@@ -31,8 +31,8 @@ export async function GET(request: Request) {
             const warehouse = await Warehouse.findById(warehouseId);
             if (!warehouse) return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 });
 
-            // 2. Get all products for that organization
-            const products = await Product.find({ organization: warehouse.organization }).sort({ name: 1 });
+            // 2. Get all products for that warehouse
+            const products = await Product.find({ warehouse: warehouseId }).sort({ name: 1 });
 
             // 3. Get all stock records for this warehouse
             const stocks = await Stock.find({ warehouse: warehouseId });
@@ -56,6 +56,7 @@ export async function GET(request: Request) {
                 return {
                     product,
                     quantity: stock ? stock.quantity : 0,
+                    bookStock: stock ? stock.bookStock : (product.bookStock || 0),
                     lastAuditDate: stock ? stock.lastAuditDate : (audit ? audit.latestAudit.createdAt : null),
                     lastAuditValue: audit ? audit.latestAudit.physicalQuantity : null,
                     stockId: stock ? stock._id : null
@@ -70,7 +71,7 @@ export async function GET(request: Request) {
         if (warehouseId) query.warehouse = warehouseId;
 
         const stock = await Stock.find(query)
-            .populate('product', 'name sku unit')
+            .populate('product', 'name sku unit bookStock')
             .populate('warehouse', 'name code');
 
         if (includeAudits && productId && warehouseId) {
@@ -94,7 +95,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { productId, warehouseId, quantity, type, notes } = body;
+        const { productId, warehouseId, quantity, bookStock, type, notes } = body;
 
         if (!productId || !warehouseId) {
             return NextResponse.json({ error: 'Product and Warehouse are required' }, { status: 400 });
@@ -128,8 +129,11 @@ export async function POST(request: Request) {
             stock = await Stock.create({
                 product: productId,
                 warehouse: warehouseId,
-                quantity: 0
+                quantity: 0,
+                bookStock: bookStock ? Number(bookStock) : 0
             });
+        } else if (bookStock !== undefined && session.user?.role === 'admin') {
+            stock.bookStock = Number(bookStock);
         }
 
         const isAuditRequest = type === 'audit' || session.user?.role === 'auditor';
@@ -162,10 +166,12 @@ export async function POST(request: Request) {
             });
         } else {
             // SYSTEM UPDATE (Stock level change)
-            if (type === 'adjust') {
-                stock.quantity += Number(quantity);
-            } else {
-                stock.quantity = Number(quantity);
+            if (quantity !== undefined) {
+                if (type === 'adjust') {
+                    stock.quantity += Number(quantity);
+                } else {
+                    stock.quantity = Number(quantity);
+                }
             }
             await stock.save();
 

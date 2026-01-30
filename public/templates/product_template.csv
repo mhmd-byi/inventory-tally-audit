@@ -1,5 +1,5 @@
-Name,SKU,Category,Unit,Description
-Product A,SKU-001,Electronics,pcs,High quality electronic item
-Product B,SKU-002,Furniture,units,Solid wood table
-Product C,SKU-003,Hardware,kg,Industrial grade bolts
-Product D,SKU-004,Textile,meters,Premium cotton fabric
+Name,SKU,Category,Unit,Description,Book Stock
+Product A,SKU-001,Electronics,pcs,High quality electronic item,100
+Product B,SKU-002,Furniture,units,Solid wood table,50
+Product C,SKU-003,Hardware,kg,Industrial grade bolts,200
+Product D,SKU-004,Textile,meters,Premium cotton fabric,150

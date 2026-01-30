@@ -22,6 +22,11 @@ const stockSchema = new mongoose.Schema(
             default: 0,
             min: [0, 'Quantity cannot be negative'],
         },
+        bookStock: {
+            type: Number,
+            default: 0,
+            min: [0, 'Book stock cannot be negative'],
+        },
         minStockLevel: {
             type: Number,
             default: 0,

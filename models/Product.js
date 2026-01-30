@@ -14,7 +14,6 @@ const productSchema = new mongoose.Schema(
         sku: {
             type: String,
             required: [true, 'Please provide product SKU or Code'],
-            unique: true,
             uppercase: true,
             trim: true,
         },
@@ -36,16 +35,28 @@ const productSchema = new mongoose.Schema(
             ref: 'Organization',
             required: [true, 'Product must belong to an organization'],
         },
+        warehouse: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Warehouse',
+            required: [true, 'Product must belong to a warehouse'],
+        },
         status: {
             type: String,
             enum: ['active', 'inactive'],
             default: 'active',
+        },
+        bookStock: {
+            type: Number,
+            default: 0,
         },
     },
     {
         timestamps: true,
     }
 );
+
+// Unique SKU per warehouse
+productSchema.index({ sku: 1, warehouse: 1 }, { unique: true });
 
 const Product = mongoose.model('Product', productSchema);
 

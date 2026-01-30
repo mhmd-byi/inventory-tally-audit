@@ -13,10 +13,10 @@ export async function POST(request: Request) {
 
         const formData = await request.formData();
         const file = formData.get('file') as File;
-        const organizationId = formData.get('organizationId') as string;
+        const warehouseId = formData.get('warehouseId') as string;
 
-        if (!file || !organizationId) {
-            return NextResponse.json({ error: 'File and Organization ID are required' }, { status: 400 });
+        if (!file || !warehouseId) {
+            return NextResponse.json({ error: 'File and Warehouse ID are required' }, { status: 400 });
         }
 
         const buffer = await file.arrayBuffer();
@@ -33,6 +33,12 @@ export async function POST(request: Request) {
 
         await dbConnect();
 
+        // Get organization from warehouse
+        const Warehouse = (await import('@/models/Warehouse')).default;
+        const warehouse = await Warehouse.findById(warehouseId);
+        if (!warehouse) return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 });
+        const organizationId = warehouse.organization;
+
         const results = {
             success: 0,
             skipped: 0,
@@ -45,6 +51,7 @@ export async function POST(request: Request) {
             const unit = row.Unit || row.unit || 'pcs';
             const category = row.Category || row.category || '';
             const description = row.Description || row.description || '';
+            const bookStock = row['Book Stock'] || row.book_stock || row.bookStock || 0;
 
             if (!name || !sku) {
                 results.errors.push(`Row ${data.indexOf(row) + 2}: Missing name or SKU`);
@@ -54,7 +61,7 @@ export async function POST(request: Request) {
 
             try {
                 const normalizedSku = sku.toString().toUpperCase().trim();
-                const existing = await Product.findOne({ sku: normalizedSku });
+                const existing = await Product.findOne({ sku: normalizedSku, warehouse: warehouseId });
 
                 if (existing) {
                     results.skipped++;
@@ -68,7 +75,9 @@ export async function POST(request: Request) {
                     category: category.toString().trim(),
                     description: description.toString().trim(),
                     organization: organizationId,
-                    status: 'active'
+                    warehouse: warehouseId,
+                    status: 'active',
+                    bookStock: Number(bookStock) || 0
                 });
                 results.success++;
             } catch (err: any) {

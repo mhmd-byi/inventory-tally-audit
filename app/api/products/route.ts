@@ -8,49 +8,50 @@ import { auth } from '@/lib/auth';
 // Ensure models are registered
 import '@/models/Organization';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const session = await auth();
+        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const { searchParams } = new URL(request.url);
+        const warehouseId = searchParams.get('warehouseId');
 
         await dbConnect();
 
         const role = session.user?.role;
         const userId = session.user?.id;
 
-        let query = {};
+        let query: any = {};
+        if (warehouseId) {
+            query.warehouse = warehouseId;
+        }
 
-        if (role !== 'admin') {
+        if (role !== 'admin' && !warehouseId) {
             const user = await User.findById(userId);
             if (!user) return NextResponse.json([]);
 
             if (role === 'store_manager') {
                 if (!user.organization) return NextResponse.json([]);
-                query = { organization: user.organization };
+                query.organization = user.organization;
             } else if (role === 'auditor') {
                 const allowedOrgs = user.organizations && user.organizations.length > 0
                     ? user.organizations
                     : (user.organization ? [user.organization] : []);
 
                 if (allowedOrgs.length === 0) return NextResponse.json([]);
-                query = { organization: { $in: allowedOrgs } };
+                query.organization = { $in: allowedOrgs };
             }
         }
 
         const products = await Product.find(query)
             .populate('organization', 'name code')
+            .populate('warehouse', 'name code')
             .sort({ createdAt: -1 });
 
         return NextResponse.json(products);
     } catch (error: any) {
         console.error('Error fetching products:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch products' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
     }
 }
 
@@ -63,29 +64,26 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, sku, description, category, unit, organizationId } = body;
+        const { name, sku, description, category, unit, organizationId, warehouseId, bookStock } = body;
 
-        if (!name || !sku) {
-            return NextResponse.json({ error: 'Name and SKU are required' }, { status: 400 });
+        if (!name || !sku || !warehouseId) {
+            return NextResponse.json({ error: 'Name, SKU and Warehouse are required' }, { status: 400 });
         }
 
         await dbConnect();
 
+        // 1. Fetch Warehouse to get organization and verify existence
+        const Warehouse = mongoose.models.Warehouse || require('@/models/Warehouse');
+        const warehouse = await Warehouse.findById(warehouseId);
+        if (!warehouse) return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 });
+
         // Determine organization
-        let finalOrgId = organizationId;
-        if (session.user?.role === 'store_manager') {
-            const user = await User.findById(session.user.id);
-            finalOrgId = user?.organization;
-        }
+        let finalOrgId = warehouse.organization;
 
-        if (!finalOrgId) {
-            return NextResponse.json({ error: 'Organization is required' }, { status: 400 });
-        }
-
-        // Check for duplicate SKU
-        const existing = await Product.findOne({ sku: sku.toUpperCase() });
+        // Check for duplicate SKU in this warehouse
+        const existing = await Product.findOne({ sku: sku.toUpperCase(), warehouse: warehouseId });
         if (existing) {
-            return NextResponse.json({ error: 'Product SKU already exists' }, { status: 400 });
+            return NextResponse.json({ error: 'Product SKU already exists in this warehouse' }, { status: 400 });
         }
 
         const product = await Product.create({
@@ -94,7 +92,9 @@ export async function POST(request: Request) {
             description,
             category,
             unit: unit || 'pcs',
-            organization: finalOrgId
+            organization: finalOrgId,
+            warehouse: warehouseId,
+            bookStock: bookStock ? Number(bookStock) : 0
         });
 
         return NextResponse.json(product, { status: 201 });

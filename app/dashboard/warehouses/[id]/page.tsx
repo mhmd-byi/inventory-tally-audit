@@ -12,7 +12,12 @@ import {
     CheckCircle2,
     Loader2,
     Package,
-    History
+    History,
+    Plus,
+    Upload,
+    FileSpreadsheet,
+    X,
+    FileText
 } from 'lucide-react';
 
 interface Product {
@@ -23,8 +28,9 @@ interface Product {
 }
 
 interface InventoryItem {
-    product: Product;
+    product: Product & { bookStock?: number };
     quantity: number;
+    bookStock: number;
     lastAuditDate: string | null;
     lastAuditValue: number | null;
     stockId: string | null;
@@ -35,6 +41,7 @@ interface WarehouseDetails {
     name: string;
     code: string;
     organization: {
+        _id: string;
         name: string;
     };
 }
@@ -51,11 +58,82 @@ export default function WarehouseAuditPage() {
     const [error, setError] = useState('');
     const [saveStatus, setSaveStatus] = useState<{ [key: string]: 'idle' | 'saving' | 'success' | 'error' }>({});
 
-    // Local state for inputs
-    const [inputs, setInputs] = useState<{ [productId: string]: { systemVal: string, auditVal: string } }>({});
+    // Product Modal States
+    const [showProductModal, setShowProductModal] = useState(false);
+    const [prodFormData, setProdFormData] = useState({ name: '', sku: '', category: '', unit: 'pcs', description: '', bookStock: '' });
+    const [prodError, setProdError] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [bulkUploading, setBulkUploading] = useState(false);
+    const [bulkSummary, setBulkSummary] = useState<any>(null);
 
+    // Local state for inputs
+    const [inputs, setInputs] = useState<{ [productId: string]: { systemVal: string, auditVal: string, bookStockVal: string } }>({});
+
+    const isAdmin = session?.user?.role === 'admin';
     const isStoreManager = session?.user?.role === 'store_manager' || session?.user?.role === 'admin';
     const isAuditor = session?.user?.role === 'auditor' || session?.user?.role === 'admin';
+
+
+    const handleCreateProduct = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        setProdError('');
+        try {
+            const res = await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...prodFormData,
+                    warehouseId,
+                    bookStock: Number(prodFormData.bookStock) || 0
+                }),
+            });
+            if (res.ok) {
+                setProdFormData({ name: '', sku: '', category: '', unit: 'pcs', description: '', bookStock: '' });
+                setShowProductModal(false);
+                fetchData();
+            } else {
+                setProdError((await res.json()).error);
+            }
+        } catch (err) {
+            setProdError('Failed to create product');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setBulkUploading(true);
+        setProdError('');
+        setBulkSummary(null);
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('warehouseId', warehouseId);
+
+        try {
+            const res = await fetch('/api/products/bulk', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                setBulkSummary(data.summary);
+                fetchData();
+            } else {
+                setProdError(data.error);
+            }
+        } catch (err) {
+            setProdError('Failed to upload file');
+        } finally {
+            setBulkUploading(false);
+            e.target.value = '';
+        }
+    };
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -87,7 +165,8 @@ export default function WarehouseAuditPage() {
             invData.forEach(item => {
                 initialInputs[item.product._id] = {
                     systemVal: item.quantity.toString(),
-                    auditVal: item.lastAuditValue !== null ? item.lastAuditValue.toString() : ''
+                    auditVal: item.lastAuditValue !== null ? item.lastAuditValue.toString() : '',
+                    bookStockVal: item.bookStock !== undefined ? item.bookStock.toString() : (item.product.bookStock || 0).toString()
                 };
             });
             setInputs(initialInputs);
@@ -99,33 +178,40 @@ export default function WarehouseAuditPage() {
         }
     };
 
-    const handleInputChange = (productId: string, type: 'system' | 'audit', value: string) => {
+    const handleInputChange = (productId: string, type: 'system' | 'audit' | 'bookStock', value: string) => {
         setInputs(prev => ({
             ...prev,
             [productId]: {
                 ...prev[productId],
-                [type === 'system' ? 'systemVal' : 'auditVal']: value
+                [type === 'system' ? 'systemVal' : type === 'audit' ? 'auditVal' : 'bookStockVal']: value
             }
         }));
     };
 
-    const handleSave = async (productId: string, role: 'store_manager' | 'auditor') => {
-        const val = role === 'store_manager' ? inputs[productId].systemVal : inputs[productId].auditVal;
+    const handleSave = async (productId: string, role: 'store_manager' | 'auditor' | 'admin') => {
+        const val = role === 'store_manager' ? inputs[productId].systemVal : role === 'auditor' ? inputs[productId].auditVal : inputs[productId].bookStockVal;
 
         if (val === '' && role === 'auditor') return; // Audit value can't be empty if saving as auditor
 
         setSaveStatus(prev => ({ ...prev, [productId]: 'saving' }));
 
         try {
+            const body: any = {
+                productId,
+                warehouseId,
+                type: role === 'store_manager' ? 'set' : (role === 'auditor' ? 'audit' : 'bookUpdate')
+            };
+
+            if (role === 'admin') {
+                body.bookStock = Number(val);
+            } else {
+                body.quantity = Number(val);
+            }
+
             const res = await fetch('/api/inventory', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    productId,
-                    warehouseId,
-                    quantity: Number(val),
-                    type: role === 'store_manager' ? 'set' : 'audit' // Backend handles logic based on role session
-                })
+                body: JSON.stringify(body)
             });
 
             if (res.ok) {
@@ -136,6 +222,10 @@ export default function WarehouseAuditPage() {
                         // Update the baseline quantity in UI if manager saved
                         setInventory(prev => prev.map(item =>
                             item.product._id === productId ? { ...item, quantity: Number(val) } : item
+                        ));
+                    } else if (role === 'admin') {
+                        setInventory(prev => prev.map(item =>
+                            item.product._id === productId ? { ...item, bookStock: Number(val) } : item
                         ));
                     }
                 }, 2000);
@@ -189,12 +279,14 @@ export default function WarehouseAuditPage() {
                             </div>
                             <h2 className="text-3xl font-bold tracking-tight text-black">{warehouse.name}</h2>
                         </div>
-                        <div className="text-right">
-                            <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Current User Role</p>
-                            <p className="text-sm font-bold text-black uppercase tracking-tight italic">
-                                {session?.user?.role?.replace('_', ' ')}
-                            </p>
-                        </div>
+                        {isStoreManager && (
+                            <button
+                                onClick={() => setShowProductModal(true)}
+                                className="bg-black text-white px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all flex items-center shadow-lg"
+                            >
+                                <Plus className="w-4 h-4 mr-2" /> Add Item
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -204,8 +296,9 @@ export default function WarehouseAuditPage() {
                         <thead>
                             <tr className="bg-zinc-50 border-b border-zinc-200">
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Item Details</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Baseline Stock</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-48">Store Manager / Update</th>
+                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-24">Unit</th>
+                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-40">Book Stock (ERP)</th>
+                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-48">Store Manager / Set Stock</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-48">Auditor / Physical Count</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-right w-24">Status</th>
                             </tr>
@@ -224,12 +317,37 @@ export default function WarehouseAuditPage() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-6">
-                                        <div className="text-xl font-bold text-black">{item.quantity}</div>
-                                        <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{item.product.unit} available</div>
+
+                                    <td className="px-6 py-6 text-center">
+                                        <span className="text-[10px] font-black text-black bg-zinc-100 px-2 py-1 rounded uppercase tracking-widest border border-zinc-200">
+                                            {item.product.unit}
+                                        </span>
                                     </td>
 
-                                    {/* Store Manager Column */}
+                                    <td className="px-6 py-6 text-center">
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <input
+                                                type="number"
+                                                disabled={!isAdmin}
+                                                value={inputs[item.product._id]?.bookStockVal || ''}
+                                                onChange={(e) => handleInputChange(item.product._id, 'bookStock', e.target.value)}
+                                                className={`w-20 px-2 py-1.5 border rounded-lg font-bold text-xs focus:ring-2 focus:ring-black outline-none text-center transition-all ${isAdmin ? 'bg-white border-zinc-200 focus:border-black' : 'bg-transparent border-transparent text-black cursor-default'
+                                                    }`}
+                                                placeholder="ERP"
+                                            />
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={() => handleSave(item.product._id, 'admin')}
+                                                    className="p-1.5 bg-zinc-100 text-black rounded-md hover:bg-black hover:text-white transition-all disabled:opacity-50"
+                                                    disabled={saveStatus[item.product._id] === 'saving'}
+                                                >
+                                                    <Save className="w-3 h-3" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+
+
                                     <td className="px-6 py-6 text-center">
                                         <div className="flex items-center justify-center space-x-2">
                                             <input
@@ -253,7 +371,6 @@ export default function WarehouseAuditPage() {
                                         </div>
                                     </td>
 
-                                    {/* Auditor Column */}
                                     <td className="px-6 py-6 text-center">
                                         <div className="flex items-center justify-center space-x-2">
                                             <input
@@ -278,7 +395,6 @@ export default function WarehouseAuditPage() {
                                     </td>
 
                                     <td className="px-6 py-6 text-right">
-                                        {/* SAVE STATUS FEEDBACK */}
                                         {saveStatus[item.product._id] === 'saving' && (
                                             <div className="flex items-center justify-end">
                                                 <Loader2 className="w-4 h-4 animate-spin text-zinc-300" />
@@ -295,7 +411,6 @@ export default function WarehouseAuditPage() {
                                             </div>
                                         )}
 
-                                        {/* DISCREPANCY DISPLAY */}
                                         {inputs[item.product._id]?.auditVal !== '' ? (() => {
                                             const diff = Number(inputs[item.product._id].auditVal) - item.quantity;
                                             return diff === 0 ? (
@@ -323,14 +438,140 @@ export default function WarehouseAuditPage() {
                     </table>
                 </div>
 
-                {/* Empty State */}
                 {inventory.length === 0 && (
                     <div className="text-center py-20 border-2 border-dashed border-zinc-100 rounded-[2.5rem] mt-8">
                         <Package className="w-12 h-12 text-zinc-200 mx-auto mb-4" />
-                        <p className="text-zinc-400 font-bold text-xs uppercase tracking-widest">No products in this company catalog</p>
+                        <p className="text-zinc-400 font-bold text-xs uppercase tracking-widest">No products in this warehouse</p>
+                        <button
+                            onClick={() => setShowProductModal(true)}
+                            className="mt-6 text-black border border-black px-6 py-2 rounded-xl text-xs font-bold hover:bg-black hover:text-white transition-all"
+                        >
+                            Add Your First Product
+                        </button>
                     </div>
                 )}
             </main>
+
+            {showProductModal && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <div className="p-8 border-b border-zinc-100 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-xl font-bold text-black flex items-center">
+                                    <Package className="w-5 h-5 mr-3" /> Add Item to {warehouse?.name}
+                                </h3>
+                                <p className="text-zinc-500 font-medium text-xs mt-1">Register new products specific to this location</p>
+                            </div>
+                            <button onClick={() => setShowProductModal(false)} className="text-zinc-400 hover:text-black transition-all p-2 rounded-full hover:bg-zinc-100">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div className="space-y-6">
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center">
+                                    <Plus className="w-4 h-4 mr-3 text-black" /> Individual Entry
+                                </h4>
+                                <form onSubmit={handleCreateProduct} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Product Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Premium Basmati Rice"
+                                            required
+                                            value={prodFormData.name}
+                                            onChange={e => setProdFormData({ ...prodFormData, name: e.target.value })}
+                                            className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm transition-colors"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">SKU / Code</label>
+                                            <input
+                                                type="text"
+                                                placeholder="SKU-001"
+                                                required
+                                                value={prodFormData.sku}
+                                                onChange={e => setProdFormData({ ...prodFormData, sku: e.target.value })}
+                                                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm transition-colors"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Initial Book Stock</label>
+                                            <input
+                                                type="number"
+                                                placeholder="0"
+                                                required
+                                                value={prodFormData.bookStock}
+                                                onChange={e => setProdFormData({ ...prodFormData, bookStock: e.target.value })}
+                                                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm transition-colors"
+                                            />
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        disabled={submitting}
+                                        className="w-full py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all disabled:opacity-50"
+                                    >
+                                        {submitting ? 'Registering...' : 'Add Products to Warehouse'}
+                                    </button>
+                                    {prodError && <p className="text-xs font-bold text-red-500 text-center uppercase tracking-widest">{prodError}</p>}
+                                </form>
+                            </div>
+
+                            <div className="space-y-6">
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center">
+                                    <FileSpreadsheet className="w-4 h-4 mr-3 text-black" /> Bulk Import
+                                </h4>
+                                <div className="p-8 border border-dashed border-zinc-200 bg-zinc-50/50 rounded-3xl text-center">
+                                    <input
+                                        type="file"
+                                        id="bulk-upload-wh"
+                                        className="hidden"
+                                        accept=".xlsx, .xls, .csv"
+                                        onChange={handleBulkUpload}
+                                        disabled={bulkUploading}
+                                    />
+                                    <label
+                                        htmlFor="bulk-upload-wh"
+                                        className={`w-full py-10 border-2 border-white bg-white rounded-2xl flex flex-col items-center justify-center font-bold text-sm cursor-pointer hover:border-black transition-all ${bulkUploading ? 'opacity-50 cursor-wait' : ''}`}
+                                    >
+                                        <Upload className={`w-8 h-8 mb-3 ${bulkUploading ? 'animate-bounce text-zinc-300' : 'text-zinc-200'}`} />
+                                        {bulkUploading ? 'Processing File...' : 'Choose Data File'}
+                                    </label>
+
+                                    <div className="mt-4 text-center">
+                                        <a
+                                            href="/templates/product_template.csv"
+                                            download
+                                            className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black transition-colors flex items-center justify-center"
+                                        >
+                                            <FileSpreadsheet className="w-3 h-3 mr-1.5" />
+                                            Download Sample Template
+                                        </a>
+                                    </div>
+
+                                    {bulkSummary && (
+                                        <div className="mt-8 p-5 bg-white rounded-2xl border border-zinc-100 shadow-sm text-left">
+                                            <h5 className="text-[10px] font-black uppercase tracking-widest text-black mb-4">Upload Summary</h5>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="p-3 bg-green-50 rounded-xl">
+                                                    <p className="text-[9px] font-bold text-green-600 uppercase">Items Added</p>
+                                                    <p className="text-xl font-bold text-green-700">{bulkSummary.success}</p>
+                                                </div>
+                                                <div className="p-3 bg-zinc-50 rounded-xl">
+                                                    <p className="text-[9px] font-bold text-zinc-400 uppercase">Duplicates</p>
+                                                    <p className="text-xl font-bold text-zinc-500">{bulkSummary.skipped}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth';
 
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await auth();
@@ -13,7 +13,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Unauthorized. Only admins can edit book stock.' }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         const body = await request.json();
         const { bookStock } = body;
 

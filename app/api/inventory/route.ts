@@ -152,11 +152,12 @@ export async function POST(request: Request) {
 
         // Ensure stock record exists
         if (!stock) {
+            const product = await Product.findById(productId);
             stock = await Stock.create({
                 product: productId,
                 warehouse: warehouseId,
                 quantity: 0,
-                bookStock: bookStock ? Number(bookStock) : 0
+                bookStock: bookStock !== undefined ? Number(bookStock) : (product?.bookStock || 0)
             });
         } else if (bookStock !== undefined && session.user?.role === 'admin') {
             stock.bookStock = Number(bookStock);

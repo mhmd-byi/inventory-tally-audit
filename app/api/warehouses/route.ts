@@ -32,7 +32,15 @@ export async function GET(request: Request) {
 
             if (session.user?.role === 'store_manager') {
                 if (!user.organization) return NextResponse.json([]);
-                query = { organization: user.organization };
+                if (user.warehouse) {
+                    query = { _id: user.warehouse };
+                } else {
+                    query = { organization: user.organization };
+                }
+
+                if (orgId) {
+                    query.organization = orgId;
+                }
             } else if (session.user?.role === 'auditor') {
                 if (user.warehouses && user.warehouses.length > 0) {
                     query = { _id: { $in: user.warehouses } };

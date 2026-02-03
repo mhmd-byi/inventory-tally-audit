@@ -56,8 +56,12 @@ export async function GET() {
             if (user) {
                 if (role === 'store_manager' && user.organization) {
                     orgFilter = { _id: user.organization };
-                    const warehouses = await Warehouse.find({ organization: user.organization }).select('_id');
-                    warehouseFilter = { warehouse: { $in: warehouses.map((w: any) => w._id) } };
+                    if (user.warehouse) {
+                        warehouseFilter = { warehouse: user.warehouse };
+                    } else {
+                        const warehouses = await Warehouse.find({ organization: user.organization }).select('_id');
+                        warehouseFilter = { warehouse: { $in: warehouses.map((w: any) => w._id) } };
+                    }
                 } else if (role === 'auditor' && user.organizations?.length > 0) {
                     orgFilter = { _id: { $in: user.organizations } };
                     const warehouses = await Warehouse.find({ organization: { $in: user.organizations } }).select('_id');
@@ -67,9 +71,20 @@ export async function GET() {
         }
 
         stats.totalOrganizations = await Organization.countDocuments(orgFilter);
-        stats.totalWarehouses = await Warehouse.countDocuments(Object.keys(orgFilter).length ? { organization: (orgFilter as any)._id } : {});
+
+        let warehouseCountFilter: any = Object.keys(orgFilter).length ? { organization: (orgFilter as any)._id } : {};
+        if (warehouseFilter && (warehouseFilter as any).warehouse) {
+            warehouseCountFilter = { ...warehouseCountFilter, _id: (warehouseFilter as any).warehouse };
+        }
+        stats.totalWarehouses = await Warehouse.countDocuments(warehouseCountFilter);
+
         stats.totalUsers = await User.countDocuments(Object.keys(orgFilter).length ? { organization: (orgFilter as any)._id } : {});
-        stats.totalProducts = await Product.countDocuments(Object.keys(orgFilter).length ? { organization: (orgFilter as any)._id || (orgFilter as any)._id?.$in } : {});
+
+        let productCountFilter: any = Object.keys(orgFilter).length ? { organization: (orgFilter as any)._id || (orgFilter as any)._id?.$in } : {};
+        if (warehouseFilter && (warehouseFilter as any).warehouse) {
+            productCountFilter = { ...productCountFilter, warehouse: (warehouseFilter as any).warehouse };
+        }
+        stats.totalProducts = await Product.countDocuments(productCountFilter);
 
         // Inventory Value
         const inventory = await Stock.aggregate([

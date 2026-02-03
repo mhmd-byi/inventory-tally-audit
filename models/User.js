@@ -46,6 +46,11 @@ const userSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Organization'
         }],
+        // Specific warehouse for Store Managers
+        warehouse: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Warehouse'
+        },
     },
     {
         timestamps: true,

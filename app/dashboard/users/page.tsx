@@ -21,6 +21,12 @@ interface Organization {
     code: string;
 }
 
+interface Warehouse {
+    _id: string;
+    name: string;
+    code: string;
+}
+
 interface UserData {
     _id: string;
     name: string;
@@ -28,6 +34,7 @@ interface UserData {
     role: string;
     organization?: Organization;
     organizations?: Organization[];
+    warehouse?: Warehouse;
     createdAt: string;
 }
 
@@ -36,7 +43,9 @@ export default function UsersPage() {
     const router = useRouter();
     const [users, setUsers] = useState<UserData[]>([]);
     const [organizations, setOrganizations] = useState<Organization[]>([]);
+    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [loading, setLoading] = useState(true);
+    const [fetchingWarehouses, setFetchingWarehouses] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
@@ -45,6 +54,7 @@ export default function UsersPage() {
         role: 'auditor',
         organizationId: '',
         organizationIds: [] as string[],
+        warehouseId: '',
     });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -85,6 +95,18 @@ export default function UsersPage() {
         } catch (err) { }
     };
 
+    const fetchWarehouses = async (orgId: string) => {
+        if (!orgId) {
+            setWarehouses([]);
+            return;
+        }
+        try {
+            setFetchingWarehouses(true);
+            const response = await fetch(`/api/warehouses?organizationId=${orgId}`);
+            if (response.ok) setWarehouses(await response.json());
+        } catch (err) { } finally { setFetchingWarehouses(false); }
+    };
+
     const handleOrgToggle = (orgId: string) => {
         setFormData(prev => {
             const current = [...prev.organizationIds];
@@ -100,12 +122,13 @@ export default function UsersPage() {
         e.preventDefault();
         setError(''); setSuccess(''); setSubmitting(true);
 
-        if (formData.role === 'store_manager' && !formData.organizationId) {
-            setError('Please select a company for the Store Manager'); setSubmitting(false); return;
-        }
-
-        if (formData.role === 'auditor' && formData.organizationIds.length === 0) {
-            setError('Please select at least one company for the Auditor'); setSubmitting(false); return;
+        if (formData.role === 'store_manager') {
+            if (!formData.organizationId) {
+                setError('Please select a company for the Store Manager'); setSubmitting(false); return;
+            }
+            if (!formData.warehouseId) {
+                setError('Please select a warehouse for the Store Manager'); setSubmitting(false); return;
+            }
         }
 
         try {
@@ -120,7 +143,8 @@ export default function UsersPage() {
 
             if (response.ok) {
                 setSuccess(`User account created for ${formData.name}`);
-                setFormData({ name: '', email: '', password: '', role: 'auditor', organizationId: '', organizationIds: [] });
+                setFormData({ name: '', email: '', password: '', role: 'auditor', organizationId: '', organizationIds: [], warehouseId: '' });
+                setWarehouses([]);
                 fetchUsers();
                 setTimeout(() => { setShowCreateModal(false); setSuccess(''); }, 2000);
             } else {
@@ -206,19 +230,28 @@ export default function UsersPage() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-5">
-                                        <div className="flex flex-wrap gap-1.5">
+                                        <div className="flex flex-col gap-1.5">
                                             {user.role === 'admin' ? (
-                                                <span className="text-[10px] font-bold uppercase text-zinc-400">All Companies</span>
+                                                <span className="text-[10px] font-bold uppercase text-zinc-400">All Systems Access</span>
                                             ) : user.role === 'auditor' ? (
-                                                user.organizations?.map((org: any) => (
-                                                    <span key={org._id} className="text-[10px] font-bold border border-zinc-100 px-1.5 py-0.5 rounded uppercase bg-zinc-50/50">
-                                                        {org.name}
-                                                    </span>
-                                                ))
+                                                <div className="flex flex-wrap gap-1">
+                                                    {user.organizations?.map((org: any) => (
+                                                        <span key={org._id} className="text-[10px] font-bold border border-zinc-100 px-1.5 py-0.5 rounded uppercase bg-zinc-50/50">
+                                                            {org.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
                                             ) : (
-                                                <span className="text-[10px] font-bold uppercase text-black">
-                                                    {typeof user.organization === 'object' ? (user.organization as any)?.name : '-'}
-                                                </span>
+                                                <div className="space-y-1">
+                                                    <div className="text-[10px] font-bold uppercase text-black">
+                                                        {typeof user.organization === 'object' ? (user.organization as any)?.name : '-'}
+                                                    </div>
+                                                    {user.warehouse && (
+                                                        <div className="flex items-center text-[9px] font-bold text-zinc-400 uppercase tracking-tight">
+                                                            <Database className="w-2.5 h-2.5 mr-1" /> {user.warehouse.name}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                     </td>
@@ -262,11 +295,26 @@ export default function UsersPage() {
 
                                 {formData.role === 'store_manager' && (
                                     <div className="p-5 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-4">
-                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Company Assignment</h4>
-                                        <select required value={formData.organizationId} onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })} className="w-full px-3 py-2 border border-zinc-200 rounded-lg font-bold text-xs uppercase outline-none shadow-sm">
-                                            <option value="">Select Company</option>
-                                            {organizations.map(org => <option key={org._id} value={org._id}>{org.name}</option>)}
-                                        </select>
+                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Assignment Details</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[9px] font-black uppercase text-zinc-400 ml-1 mb-1 block">Company</label>
+                                                <select required value={formData.organizationId} onChange={(e) => {
+                                                    setFormData({ ...formData, organizationId: e.target.value, warehouseId: '' });
+                                                    fetchWarehouses(e.target.value);
+                                                }} className="w-full px-3 py-2 border border-zinc-200 rounded-lg font-bold text-xs uppercase outline-none shadow-sm">
+                                                    <option value="">Select Company</option>
+                                                    {organizations.map(org => <option key={org._id} value={org._id}>{org.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-black uppercase text-zinc-400 ml-1 mb-1 block">Warehouse</label>
+                                                <select required value={formData.warehouseId} disabled={!formData.organizationId || fetchingWarehouses} onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })} className="w-full px-3 py-2 border border-zinc-200 rounded-lg font-bold text-xs uppercase outline-none shadow-sm disabled:opacity-50">
+                                                    <option value="">{fetchingWarehouses ? 'Loading...' : 'Select Warehouse'}</option>
+                                                    {warehouses.map(wh => <option key={wh._id} value={wh._id}>{wh.name}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 

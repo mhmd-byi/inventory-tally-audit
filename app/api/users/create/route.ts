@@ -15,7 +15,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { email, name, password, role, organizationId, organizationIds } = body;
+        const { email, name, password, role, organizationId, organizationIds, warehouseId } = body;
 
         await dbConnect();
 
@@ -32,11 +32,12 @@ export async function POST(request: Request) {
         };
 
         if (role === 'store_manager') {
-            if (!organizationId) {
-                return NextResponse.json({ error: 'Organization is required for store managers' }, { status: 400 });
+            if (!organizationId || !warehouseId) {
+                return NextResponse.json({ error: 'Organization and Warehouse are required for store managers' }, { status: 400 });
             }
             userData.organization = organizationId;
             userData.organizations = [organizationId];
+            userData.warehouse = warehouseId;
         } else if (role === 'auditor') {
             // Auditors can have multiple organizations
             if (organizationIds && Array.isArray(organizationIds)) {

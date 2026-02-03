@@ -7,6 +7,7 @@ import { auth } from '@/lib/auth';
 // Force register models by directly importing the JS files
 import '@/models/Organization';
 import '@/models/User';
+import '@/models/Warehouse';
 
 export async function GET() {
     try {
@@ -34,6 +35,12 @@ export async function GET() {
             .populate({
                 path: 'organizations',
                 model: 'Organization',
+                select: 'name code',
+                options: { strictPopulate: false }
+            })
+            .populate({
+                path: 'warehouse',
+                model: 'Warehouse',
                 select: 'name code',
                 options: { strictPopulate: false }
             })

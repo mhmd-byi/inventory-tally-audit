@@ -38,6 +38,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         name: user.name,
                         email: user.email,
                         role: user.role,
+                        organization: user.organization?.toString(),
+                        warehouse: user.warehouse?.toString(),
                     };
                 } catch (error) {
                     console.error('Authorize error:', error);
@@ -51,6 +53,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             if (user) {
                 token.id = user.id;
                 token.role = user.role;
+                token.organization = user.organization;
+                token.warehouse = user.warehouse;
             }
             return token;
         },
@@ -58,6 +62,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             if (session.user) {
                 session.user.id = token.id as string;
                 session.user.role = token.role as string;
+                session.user.organization = token.organization as string;
+                session.user.warehouse = token.warehouse as string;
             }
             return session;
         },

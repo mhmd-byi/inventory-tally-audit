@@ -34,19 +34,26 @@ export async function GET(request: Request) {
                 if (!user.organization) return NextResponse.json([]);
                 query = { organization: user.organization };
             } else if (session.user?.role === 'auditor') {
-                const allowedOrgs = user.organizations && user.organizations.length > 0
-                    ? user.organizations
-                    : (user.organization ? [user.organization] : []);
-
-                if (allowedOrgs.length === 0) return NextResponse.json([]);
-
-                if (orgId) {
-                    if (!allowedOrgs.map((id: any) => id.toString()).includes(orgId)) {
-                        return NextResponse.json({ error: 'Unauthorized organization access' }, { status: 403 });
+                if (user.warehouses && user.warehouses.length > 0) {
+                    query = { _id: { $in: user.warehouses } };
+                    if (orgId) {
+                        query.organization = orgId;
                     }
-                    query = { organization: orgId };
                 } else {
-                    query = { organization: { $in: allowedOrgs } };
+                    const allowedOrgs = user.organizations && user.organizations.length > 0
+                        ? user.organizations
+                        : (user.organization ? [user.organization] : []);
+
+                    if (allowedOrgs.length === 0) return NextResponse.json([]);
+
+                    if (orgId) {
+                        if (!allowedOrgs.map((id: any) => id.toString()).includes(orgId)) {
+                            return NextResponse.json({ error: 'Unauthorized organization access' }, { status: 403 });
+                        }
+                        query = { organization: orgId };
+                    } else {
+                        query = { organization: { $in: allowedOrgs } };
+                    }
                 }
             }
         }

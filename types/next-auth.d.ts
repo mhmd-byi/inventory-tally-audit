@@ -6,6 +6,7 @@ declare module 'next-auth' {
         role: string;
         organization?: string;
         warehouse?: string;
+        warehouses?: string[];
     }
 
     interface Session {
@@ -16,6 +17,7 @@ declare module 'next-auth' {
             role: string;
             organization?: string;
             warehouse?: string;
+            warehouses?: string[];
         };
     }
 }
@@ -26,5 +28,6 @@ declare module 'next-auth/jwt' {
         role: string;
         organization?: string;
         warehouse?: string;
+        warehouses?: string[];
     }
 }

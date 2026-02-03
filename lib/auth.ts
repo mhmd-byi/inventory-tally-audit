@@ -40,6 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         role: user.role,
                         organization: user.organization?.toString(),
                         warehouse: user.warehouse?.toString(),
+                        warehouses: user.warehouses?.map((w: any) => w.toString()),
                     };
                 } catch (error) {
                     console.error('Authorize error:', error);
@@ -55,6 +56,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.role = user.role;
                 token.organization = user.organization;
                 token.warehouse = user.warehouse;
+                token.warehouses = user.warehouses;
             }
             return token;
         },
@@ -64,6 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 session.user.role = token.role as string;
                 session.user.organization = token.organization as string;
                 session.user.warehouse = token.warehouse as string;
+                session.user.warehouses = token.warehouses as string[];
             }
             return session;
         },

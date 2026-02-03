@@ -15,7 +15,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { email, name, password, role, organizationId, organizationIds, warehouseId } = body;
+        const { email, name, password, role, organizationId, organizationIds, warehouseId, warehouseIds } = body;
 
         await dbConnect();
 
@@ -39,12 +39,12 @@ export async function POST(request: Request) {
             userData.organizations = [organizationId];
             userData.warehouse = warehouseId;
         } else if (role === 'auditor') {
-            // Auditors can have multiple organizations
-            if (organizationIds && Array.isArray(organizationIds)) {
-                userData.organizations = organizationIds;
-            } else if (organizationId) {
-                userData.organizations = [organizationId];
+            if (!organizationId || (!warehouseIds || warehouseIds.length === 0)) {
+                return NextResponse.json({ error: 'Company and at least one Warehouse are required for auditors' }, { status: 400 });
             }
+            userData.organization = organizationId;
+            userData.organizations = [organizationId];
+            userData.warehouses = warehouseIds;
         }
 
         const user = await User.create(userData);

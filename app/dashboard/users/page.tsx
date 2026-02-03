@@ -35,6 +35,7 @@ interface UserData {
     organization?: Organization;
     organizations?: Organization[];
     warehouse?: Warehouse;
+    warehouses?: Warehouse[];
     createdAt: string;
 }
 
@@ -55,6 +56,7 @@ export default function UsersPage() {
         organizationId: '',
         organizationIds: [] as string[],
         warehouseId: '',
+        warehouseIds: [] as string[],
     });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -107,13 +109,13 @@ export default function UsersPage() {
         } catch (err) { } finally { setFetchingWarehouses(false); }
     };
 
-    const handleOrgToggle = (orgId: string) => {
+    const handleWarehouseToggle = (whId: string) => {
         setFormData(prev => {
-            const current = [...prev.organizationIds];
-            if (current.includes(orgId)) {
-                return { ...prev, organizationIds: current.filter(id => id !== orgId) };
+            const current = [...prev.warehouseIds];
+            if (current.includes(whId)) {
+                return { ...prev, warehouseIds: current.filter(id => id !== whId) };
             } else {
-                return { ...prev, organizationIds: [...current, orgId] };
+                return { ...prev, warehouseIds: [...current, whId] };
             }
         });
     };
@@ -131,6 +133,15 @@ export default function UsersPage() {
             }
         }
 
+        if (formData.role === 'auditor') {
+            if (!formData.organizationId) {
+                setError('Please select a company for the Auditor'); setSubmitting(false); return;
+            }
+            if (formData.warehouseIds.length === 0) {
+                setError('Please select at least one warehouse for the Auditor'); setSubmitting(false); return;
+            }
+        }
+
         try {
             const response = await fetch('/api/users/create', {
                 method: 'POST',
@@ -143,7 +154,7 @@ export default function UsersPage() {
 
             if (response.ok) {
                 setSuccess(`User account created for ${formData.name}`);
-                setFormData({ name: '', email: '', password: '', role: 'auditor', organizationId: '', organizationIds: [], warehouseId: '' });
+                setFormData({ name: '', email: '', password: '', role: 'auditor', organizationId: '', organizationIds: [], warehouseId: '', warehouseIds: [] });
                 setWarehouses([]);
                 fetchUsers();
                 setTimeout(() => { setShowCreateModal(false); setSuccess(''); }, 2000);
@@ -234,12 +245,17 @@ export default function UsersPage() {
                                             {user.role === 'admin' ? (
                                                 <span className="text-[10px] font-bold uppercase text-zinc-400">All Systems Access</span>
                                             ) : user.role === 'auditor' ? (
-                                                <div className="flex flex-wrap gap-1">
-                                                    {user.organizations?.map((org: any) => (
-                                                        <span key={org._id} className="text-[10px] font-bold border border-zinc-100 px-1.5 py-0.5 rounded uppercase bg-zinc-50/50">
-                                                            {org.name}
-                                                        </span>
-                                                    ))}
+                                                <div className="space-y-1">
+                                                    <div className="text-[10px] font-bold uppercase text-black">
+                                                        {typeof user.organization === 'object' ? (user.organization as any)?.name : '-'}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {user.warehouses?.map((wh: any) => (
+                                                            <span key={wh._id} className="text-[9px] font-bold border border-zinc-100 px-1.5 py-0.5 rounded uppercase bg-zinc-50/50 text-zinc-500 inline-flex items-center">
+                                                                <Database className="w-2 h-2 mr-1" /> {wh.name}
+                                                            </span>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="space-y-1">
@@ -288,7 +304,7 @@ export default function UsersPage() {
                                 <input type="password" placeholder="Account Password" required value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
 
                                 <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-bold text-sm appearance-none shadow-sm">
-                                    <option value="auditor">Auditor (Multi-Company)</option>
+                                    <option value="auditor">Auditor (Specific Warehouses)</option>
                                     <option value="store_manager">Store Manager (Single Company)</option>
                                     <option value="admin">System Admin</option>
                                 </select>
@@ -320,16 +336,40 @@ export default function UsersPage() {
 
                                 {formData.role === 'auditor' && (
                                     <div className="p-5 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-4">
-                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Select Allowed Companies</h4>
-                                        <div className="max-h-40 overflow-y-auto space-y-2.5 pr-2 custom-scrollbar">
-                                            {organizations.map(org => (
-                                                <label key={org._id} className="flex items-center space-x-3 cursor-pointer group">
-                                                    <div onClick={() => handleOrgToggle(org._id)} className={`w-5 h-5 border border-zinc-300 rounded flex items-center justify-center transition-all ${formData.organizationIds.includes(org._id) ? 'bg-black border-black text-white' : 'bg-white group-hover:border-black'}`}>
-                                                        {formData.organizationIds.includes(org._id) && <Check className="w-3 h-3" />}
+                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Auditor Assignment</h4>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-[9px] font-black uppercase text-zinc-400 ml-1 mb-1 block">Company</label>
+                                                <select required value={formData.organizationId} onChange={(e) => {
+                                                    setFormData({ ...formData, organizationId: e.target.value, warehouseIds: [] });
+                                                    fetchWarehouses(e.target.value);
+                                                }} className="w-full px-3 py-2 border border-zinc-200 rounded-lg font-bold text-xs uppercase outline-none shadow-sm">
+                                                    <option value="">Select Company</option>
+                                                    {organizations.map(org => <option key={org._id} value={org._id}>{org.name}</option>)}
+                                                </select>
+                                            </div>
+
+                                            {formData.organizationId && (
+                                                <div>
+                                                    <label className="text-[9px] font-black uppercase text-zinc-400 ml-1 mb-1 block">Allow Specific Warehouses</label>
+                                                    <div className="max-h-40 overflow-y-auto space-y-2.5 pr-2 custom-scrollbar bg-white p-4 rounded-xl border border-zinc-200 shadow-inner">
+                                                        {fetchingWarehouses ? (
+                                                            <div className="text-[10px] font-bold text-zinc-400 uppercase animate-pulse">Scanning locations...</div>
+                                                        ) : warehouses.length === 0 ? (
+                                                            <div className="text-[10px] font-bold text-red-400 uppercase">No warehouses found</div>
+                                                        ) : (
+                                                            warehouses.map(wh => (
+                                                                <label key={wh._id} className="flex items-center space-x-3 cursor-pointer group">
+                                                                    <div onClick={() => handleWarehouseToggle(wh._id)} className={`w-5 h-5 border border-zinc-300 rounded flex items-center justify-center transition-all ${formData.warehouseIds.includes(wh._id) ? 'bg-black border-black text-white' : 'bg-white group-hover:border-black'}`}>
+                                                                        {formData.warehouseIds.includes(wh._id) && <Check className="w-3 h-3" />}
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-black uppercase group-hover:text-black transition-colors">{wh.name}</span>
+                                                                </label>
+                                                            ))
+                                                        )}
                                                     </div>
-                                                    <span className="text-xs font-bold text-black uppercase group-hover:text-black transition-colors">{org.name}</span>
-                                                </label>
-                                            ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}

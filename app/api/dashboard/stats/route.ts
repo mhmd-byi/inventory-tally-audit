@@ -62,7 +62,16 @@ export async function GET() {
                         const warehouses = await Warehouse.find({ organization: user.organization }).select('_id');
                         warehouseFilter = { warehouse: { $in: warehouses.map((w: any) => w._id) } };
                     }
+                } else if (role === 'auditor' && user.organization) {
+                    orgFilter = { _id: user.organization };
+                    if (user.warehouses && user.warehouses.length > 0) {
+                        warehouseFilter = { warehouse: { $in: user.warehouses } };
+                    } else {
+                        const warehouses = await Warehouse.find({ organization: user.organization }).select('_id');
+                        warehouseFilter = { warehouse: { $in: warehouses.map((w: any) => w._id) } };
+                    }
                 } else if (role === 'auditor' && user.organizations?.length > 0) {
+                    // Legacy multi-org support
                     orgFilter = { _id: { $in: user.organizations } };
                     const warehouses = await Warehouse.find({ organization: { $in: user.organizations } }).select('_id');
                     warehouseFilter = { warehouse: { $in: warehouses.map((w: any) => w._id) } };

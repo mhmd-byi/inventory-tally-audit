@@ -51,6 +51,11 @@ const userSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Warehouse'
         },
+        // Multiple warehouses for Auditors
+        warehouses: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Warehouse'
+        }],
     },
     {
         timestamps: true,

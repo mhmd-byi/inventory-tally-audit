@@ -34,12 +34,22 @@ export async function GET(request: Request) {
                 if (!user.organization) return NextResponse.json([]);
                 query.organization = user.organization;
             } else if (role === 'auditor') {
-                const allowedOrgs = user.organizations && user.organizations.length > 0
-                    ? user.organizations
-                    : (user.organization ? [user.organization] : []);
+                if (user.warehouses && user.warehouses.length > 0) {
+                    if (warehouseId) {
+                        if (!user.warehouses.map((id: any) => id.toString()).includes(warehouseId)) {
+                            return NextResponse.json({ error: 'Unauthorized warehouse access' }, { status: 403 });
+                        }
+                    } else {
+                        query.warehouse = { $in: user.warehouses };
+                    }
+                } else {
+                    const allowedOrgs = user.organizations && user.organizations.length > 0
+                        ? user.organizations
+                        : (user.organization ? [user.organization] : []);
 
-                if (allowedOrgs.length === 0) return NextResponse.json([]);
-                query.organization = { $in: allowedOrgs };
+                    if (allowedOrgs.length === 0) return NextResponse.json([]);
+                    query.organization = { $in: allowedOrgs };
+                }
             }
         }
 

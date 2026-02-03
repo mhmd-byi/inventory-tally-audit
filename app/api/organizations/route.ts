@@ -29,15 +29,12 @@ export async function GET() {
                 if (!user.organization) return NextResponse.json([]);
                 query = { _id: user.organization };
             } else if (role === 'auditor') {
-                if (!user.organizations || user.organizations.length === 0) {
-                    // Fallback to single organization if legacy auditor
-                    if (user.organization) {
-                        query = { _id: user.organization };
-                    } else {
-                        return NextResponse.json([]);
-                    }
-                } else {
+                if (user.organization) {
+                    query = { _id: user.organization };
+                } else if (user.organizations && user.organizations.length > 0) {
                     query = { _id: { $in: user.organizations } };
+                } else {
+                    return NextResponse.json([]);
                 }
             }
         }

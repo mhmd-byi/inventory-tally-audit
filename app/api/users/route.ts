@@ -44,6 +44,12 @@ export async function GET() {
                 select: 'name code',
                 options: { strictPopulate: false }
             })
+            .populate({
+                path: 'warehouses',
+                model: 'Warehouse',
+                select: 'name code',
+                options: { strictPopulate: false }
+            })
             .sort({ createdAt: -1 });
 
         return NextResponse.json(users);

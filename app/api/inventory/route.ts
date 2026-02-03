@@ -26,6 +26,26 @@ export async function GET(request: Request) {
 
         await dbConnect();
 
+        const role = session.user?.role;
+        const userId = session.user?.id;
+
+        if (role !== 'admin' && warehouseId) {
+            const user = await User.findById(userId);
+            if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+            if (role === 'store_manager') {
+                if (user.warehouse?.toString() !== warehouseId) {
+                    return NextResponse.json({ error: 'Unauthorized warehouse access' }, { status: 403 });
+                }
+            } else if (role === 'auditor') {
+                if (user.warehouses && user.warehouses.length > 0) {
+                    if (!user.warehouses.map((id: any) => id.toString()).includes(warehouseId)) {
+                        return NextResponse.json({ error: 'Unauthorized warehouse access' }, { status: 403 });
+                    }
+                }
+            }
+        }
+
         if (getFullList && warehouseId) {
             // 1. Get Warehouse to find its organization
             const warehouse = await Warehouse.findById(warehouseId);
@@ -112,12 +132,18 @@ export async function POST(request: Request) {
 
         // 2. Role-based Security check
         if (session.user?.role !== 'admin') {
-            const allowedOrgs = user.organizations && user.organizations.length > 0
-                ? user.organizations.map((id: any) => id.toString())
-                : (user.organization ? [user.organization.toString()] : []);
+            if (session.user?.role === 'auditor' && user.warehouses && user.warehouses.length > 0) {
+                if (!user.warehouses.map((id: any) => id.toString()).includes(warehouseId)) {
+                    return NextResponse.json({ error: 'Unauthorized warehouse access' }, { status: 403 });
+                }
+            } else {
+                const allowedOrgs = user.organizations && user.organizations.length > 0
+                    ? user.organizations.map((id: any) => id.toString())
+                    : (user.organization ? [user.organization.toString()] : []);
 
-            if (!allowedOrgs.includes(warehouse.organization.toString())) {
-                return NextResponse.json({ error: 'Unauthorized organizational access' }, { status: 403 });
+                if (!allowedOrgs.includes(warehouse.organization.toString())) {
+                    return NextResponse.json({ error: 'Unauthorized organizational access' }, { status: 403 });
+                }
             }
         }
 

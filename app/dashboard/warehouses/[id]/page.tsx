@@ -17,7 +17,8 @@ import {
     Upload,
     FileSpreadsheet,
     X,
-    FileText
+    FileText,
+    Search
 } from 'lucide-react';
 
 interface Product {
@@ -54,6 +55,8 @@ export default function WarehouseAuditPage() {
 
     const [warehouse, setWarehouse] = useState<WarehouseDetails | null>(null);
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
+    const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [saveStatus, setSaveStatus] = useState<{ [key: string]: 'idle' | 'saving' | 'success' | 'error' }>({});
@@ -72,6 +75,22 @@ export default function WarehouseAuditPage() {
     const isAdmin = session?.user?.role === 'admin';
     const isStoreManager = session?.user?.role === 'store_manager' || session?.user?.role === 'admin';
     const isAuditor = session?.user?.role === 'auditor' || session?.user?.role === 'admin';
+
+    // Debounced search effect
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchQuery.trim() === '') {
+                setFilteredInventory(inventory);
+            } else {
+                const filtered = inventory.filter(item =>
+                    item.product.name.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+                setFilteredInventory(filtered);
+            }
+        }, 300); // 300ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchQuery, inventory]);
 
 
     const handleCreateProduct = async (e: React.FormEvent) => {
@@ -288,6 +307,28 @@ export default function WarehouseAuditPage() {
                             </button>
                         )}
                     </div>
+
+                    {/* Search Bar */}
+                    <div className="mt-6 relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <Search className="w-5 h-5 text-zinc-400" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search products by name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3 border border-zinc-200 rounded-xl focus:border-black focus:ring-2 focus:ring-black/5 outline-none font-medium text-sm transition-all"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute inset-y-0 right-0 pr-4 flex items-center text-zinc-400 hover:text-black transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Main Table Section */}
@@ -300,11 +341,11 @@ export default function WarehouseAuditPage() {
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-40">Book Stock (ERP)</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-48">Store Manager / Set Stock</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-48">Auditor / Physical Count</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-right w-24">Status</th>
+                                {/* <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-right w-24">Status</th> */}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-200">
-                            {inventory.map((item) => (
+                            {filteredInventory.map((item) => (
                                 <tr key={item.product._id} className="hover:bg-zinc-50/50 transition-colors group">
                                     <td className="px-6 py-6">
                                         <div className="flex items-center">
@@ -394,7 +435,7 @@ export default function WarehouseAuditPage() {
                                         </div>
                                     </td>
 
-                                    <td className="px-6 py-6 text-right">
+                                    {/* <td className="px-6 py-6 text-right">
                                         {saveStatus[item.product._id] === 'saving' && (
                                             <div className="flex items-center justify-end">
                                                 <Loader2 className="w-4 h-4 animate-spin text-zinc-300" />
@@ -431,12 +472,25 @@ export default function WarehouseAuditPage() {
                                                 No Audit Yet
                                             </div>
                                         )}
-                                    </td>
+                                    </td> */}
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
+
+                {filteredInventory.length === 0 && inventory.length > 0 && (
+                    <div className="text-center py-20 border-2 border-dashed border-zinc-100 rounded-[2.5rem] mt-8">
+                        <Search className="w-12 h-12 text-zinc-200 mx-auto mb-4" />
+                        <p className="text-zinc-400 font-bold text-xs uppercase tracking-widest">No products match your search</p>
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="mt-4 text-black border border-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-black hover:text-white transition-all"
+                        >
+                            Clear Search
+                        </button>
+                    </div>
+                )}
 
                 {inventory.length === 0 && (
                     <div className="text-center py-20 border-2 border-dashed border-zinc-100 rounded-[2.5rem] mt-8">

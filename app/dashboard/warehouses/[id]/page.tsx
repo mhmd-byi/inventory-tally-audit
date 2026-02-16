@@ -18,7 +18,8 @@ import {
     FileSpreadsheet,
     X,
     FileText,
-    Search
+    Search,
+    ClipboardCheck
 } from 'lucide-react';
 
 interface Product {
@@ -72,9 +73,16 @@ export default function WarehouseAuditPage() {
     // Local state for inputs
     const [inputs, setInputs] = useState<{ [productId: string]: { systemVal: string, auditVal: string, bookStockVal: string } }>({});
 
+    // Checklist states
+    const [showChecklistModal, setShowChecklistModal] = useState(false);
+    const [checklistTemplate, setChecklistTemplate] = useState<any>(null);
+    const [checklistResponses, setChecklistResponses] = useState<any>({});
+    const [checklistStatus, setChecklistStatus] = useState<'idle' | 'loading' | 'saving'>('idle');
+
     const isAdmin = session?.user?.role === 'admin';
     const isStoreManager = session?.user?.role === 'store_manager' || session?.user?.role === 'admin';
     const isAuditor = session?.user?.role === 'auditor' || session?.user?.role === 'lead_auditor' || session?.user?.role === 'admin';
+    const isLeadAuditor = session?.user?.role === 'lead_auditor' || session?.user?.role === 'admin';
 
     // Debounced search effect
     useEffect(() => {
@@ -256,6 +264,90 @@ export default function WarehouseAuditPage() {
         }
     };
 
+    const fetchChecklist = async () => {
+        if (!warehouse?._id) return;
+        try {
+            setChecklistStatus('loading');
+            // Fetch template
+            const templateRes = await fetch('/api/checklists');
+            if (templateRes.ok) {
+                const template = await templateRes.json();
+                setChecklistTemplate(template);
+
+                // Initialize responses
+                const initialResponses: any = {};
+                template.items?.forEach((item: any) => {
+                    initialResponses[item._id] = { response: null, notes: '' };
+                });
+
+                // Fetch existing response if any
+                const responseRes = await fetch(`/api/checklists/${warehouse._id}`);
+                if (responseRes.ok) {
+                    const existingResponse = await responseRes.json();
+                    existingResponse.items?.forEach((item: any) => {
+                        const templateItem = template.items.find((t: any) =>
+                            t.question === item.question && t.category === item.category
+                        );
+                        if (templateItem) {
+                            initialResponses[templateItem._id] = {
+                                response: item.response,
+                                notes: item.notes || ''
+                            };
+                        }
+                    });
+                }
+                setChecklistResponses(initialResponses);
+            }
+        } catch (err) {
+            console.error('Error fetching checklist:', err);
+        } finally {
+            setChecklistStatus('idle');
+        }
+    };
+
+    const handleChecklistResponse = (itemId: string, field: 'response' | 'notes', value: any) => {
+        setChecklistResponses((prev: any) => ({
+            ...prev,
+            [itemId]: { ...prev[itemId], [field]: value }
+        }));
+    };
+
+    const saveChecklist = async (status: 'in_progress' | 'completed') => {
+        if (!warehouse?._id || !checklistTemplate) return;
+        try {
+            setChecklistStatus('saving');
+            const items = checklistTemplate.items.map((item: any) => ({
+                category: item.category,
+                question: item.question,
+                response: checklistResponses[item._id]?.response,
+                notes: checklistResponses[item._id]?.notes,
+            }));
+
+            const res = await fetch('/api/checklists', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    warehouseId: warehouse._id,
+                    items,
+                    status,
+                }),
+            });
+
+            if (res.ok) {
+                alert(status === 'completed' ? 'Checklist completed successfully!' : 'Checklist saved as draft');
+                if (status === 'completed') {
+                    setShowChecklistModal(false);
+                }
+            } else {
+                alert('Failed to save checklist');
+            }
+        } catch (err) {
+            alert('Error saving checklist');
+        } finally {
+            setChecklistStatus('idle');
+        }
+    };
+
     if (loading) return (
         <div className="min-h-screen bg-white flex items-center justify-center">
             <Loader2 className="w-8 h-8 animate-spin text-black" />
@@ -298,14 +390,24 @@ export default function WarehouseAuditPage() {
                             </div>
                             <h2 className="text-3xl font-bold tracking-tight text-black">{warehouse.name}</h2>
                         </div>
-                        {isStoreManager && (
-                            <button
-                                onClick={() => setShowProductModal(true)}
-                                className="bg-black text-white px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all flex items-center shadow-lg"
-                            >
-                                <Plus className="w-4 h-4 mr-2" /> Add Item
-                            </button>
-                        )}
+                        <div className="flex items-center gap-3">
+                            {isStoreManager && (
+                                <button
+                                    onClick={() => setShowProductModal(true)}
+                                    className="bg-black text-white px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all flex items-center shadow-lg"
+                                >
+                                    <Plus className="w-4 h-4 mr-2" /> Add Item
+                                </button>
+                            )}
+                            {isLeadAuditor && (
+                                <button
+                                    onClick={() => { fetchChecklist(); setShowChecklistModal(true); }}
+                                    className="border-2 border-emerald-600 text-emerald-600 px-6 py-3 font-bold text-sm rounded-xl hover:bg-emerald-50 transition-all flex items-center shadow-lg"
+                                >
+                                    <ClipboardCheck className="w-4 h-4 mr-2" /> Verification Checklist
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Search Bar */}
@@ -623,6 +725,163 @@ export default function WarehouseAuditPage() {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Verification Checklist Modal */}
+            {showChecklistModal && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8">
+                        <div className="sticky top-0 bg-white border-b border-zinc-200 p-6 flex justify-between items-center rounded-t-2xl">
+                            <div>
+                                <h3 className="text-2xl font-bold text-black flex items-center">
+                                    <ClipboardCheck className="w-6 h-6 mr-3 text-emerald-600" />
+                                    Drum Verification Checklist
+                                </h3>
+                                <p className="text-sm text-zinc-500 mt-1">{warehouse?.name} - {warehouse?.code}</p>
+                            </div>
+                            <button
+                                onClick={() => setShowChecklistModal(false)}
+                                className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {checklistStatus === 'loading' ? (
+                            <div className="p-20 flex items-center justify-center">
+                                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                            </div>
+                        ) : checklistTemplate ? (
+                            <div className="p-6">
+                                {/* Group items by category */}
+                                {Object.entries(
+                                    checklistTemplate.items.reduce((acc: any, item: any) => {
+                                        if (!acc[item.category]) acc[item.category] = [];
+                                        acc[item.category].push(item);
+                                        return acc;
+                                    }, {})
+                                ).map(([category, items]: [string, any]) => (
+                                    <div key={category} className="mb-8">
+                                        <h4 className="text-lg font-bold text-black mb-4 pb-2 border-b-2 border-emerald-200 flex items-center">
+                                            <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-lg text-sm mr-3">
+                                                {category}
+                                            </span>
+                                        </h4>
+                                        <div className="space-y-4">
+                                            {items.map((item: any) => (
+                                                <div key={item._id} className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
+                                                    <label className="block text-sm font-bold text-zinc-700 mb-3">
+                                                        {item.question}
+                                                    </label>
+
+                                                    {item.responseType === 'yes_no' && (
+                                                        <div className="flex items-center gap-6">
+                                                            <label className="flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`response-${item._id}`}
+                                                                    checked={checklistResponses[item._id]?.response === true}
+                                                                    onChange={() => handleChecklistResponse(item._id, 'response', true)}
+                                                                    className="w-4 h-4 text-emerald-600 mr-2"
+                                                                />
+                                                                <span className="text-sm font-medium">Yes</span>
+                                                            </label>
+                                                            <label className="flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`response-${item._id}`}
+                                                                    checked={checklistResponses[item._id]?.response === false}
+                                                                    onChange={() => handleChecklistResponse(item._id, 'response', false)}
+                                                                    className="w-4 h-4 text-red-600 mr-2"
+                                                                />
+                                                                <span className="text-sm font-medium">No</span>
+                                                            </label>
+                                                            <label className="flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`response-${item._id}`}
+                                                                    checked={checklistResponses[item._id]?.response === 'N/A'}
+                                                                    onChange={() => handleChecklistResponse(item._id, 'response', 'N/A')}
+                                                                    className="w-4 h-4 text-zinc-400 mr-2"
+                                                                />
+                                                                <span className="text-sm font-medium text-zinc-500">N/A</span>
+                                                            </label>
+                                                        </div>
+                                                    )}
+
+                                                    {item.responseType === 'text' && (
+                                                        <textarea
+                                                            value={checklistResponses[item._id]?.response || ''}
+                                                            onChange={(e) => handleChecklistResponse(item._id, 'response', e.target.value)}
+                                                            className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:border-emerald-600 outline-none text-sm resize-none"
+                                                            rows={3}
+                                                            placeholder="Enter your notes here..."
+                                                        />
+                                                    )}
+
+                                                    {item.responseType === 'number' && (
+                                                        <input
+                                                            type="number"
+                                                            value={checklistResponses[item._id]?.response || ''}
+                                                            onChange={(e) => handleChecklistResponse(item._id, 'response', Number(e.target.value))}
+                                                            className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:border-emerald-600 outline-none text-sm"
+                                                            placeholder="Enter number..."
+                                                        />
+                                                    )}
+
+                                                    {item.responseType === 'yes_no' && (
+                                                        <div className="mt-3">
+                                                            <input
+                                                                type="text"
+                                                                value={checklistResponses[item._id]?.notes || ''}
+                                                                onChange={(e) => handleChecklistResponse(item._id, 'notes', e.target.value)}
+                                                                className="w-full px-4 py-2 border border-zinc-200 rounded-lg focus:border-emerald-600 outline-none text-xs"
+                                                                placeholder="Additional notes (optional)..."
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* Action Buttons */}
+                                <div className="sticky bottom-0 bg-white border-t border-zinc-200 pt-6 mt-6 flex justify-between items-center">
+                                    <button
+                                        onClick={() => setShowChecklistModal(false)}
+                                        className="px-6 py-3 border-2 border-zinc-300 text-zinc-700 font-bold text-sm rounded-xl hover:bg-zinc-50 transition-all"
+                                        disabled={checklistStatus === 'saving'}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => saveChecklist('in_progress')}
+                                            className="px-6 py-3 border-2 border-emerald-600 text-emerald-600 font-bold text-sm rounded-xl hover:bg-emerald-50 transition-all disabled:opacity-50 flex items-center"
+                                            disabled={checklistStatus === 'saving'}
+                                        >
+                                            {checklistStatus === 'saving' && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                            Save Draft
+                                        </button>
+                                        <button
+                                            onClick={() => saveChecklist('completed')}
+                                            className="px-6 py-3 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center shadow-lg"
+                                            disabled={checklistStatus === 'saving'}
+                                        >
+                                            {checklistStatus === 'saving' && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                            Submit Checklist
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-20 text-center">
+                                <p className="text-zinc-500">No checklist template found. Please contact administrator.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

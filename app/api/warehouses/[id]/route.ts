@@ -52,3 +52,84 @@ export async function GET(
         return NextResponse.json({ error: 'Failed to fetch warehouse' }, { status: 500 });
     }
 }
+
+export async function PATCH(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await auth();
+
+        if (!session || session.user?.role !== 'admin') {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
+        const { id } = await params;
+        const body = await request.json();
+
+        await dbConnect();
+
+        const warehouse = await Warehouse.findByIdAndUpdate(id, body, {
+            new: true,
+            runValidators: true,
+        }).populate('organization', 'name code');
+
+        if (!warehouse) {
+            return NextResponse.json(
+                { error: 'Warehouse not found' },
+                { status: 404 }
+            );
+        }
+
+        return NextResponse.json(warehouse);
+    } catch (error: any) {
+        console.error('Error updating warehouse:', error);
+        return NextResponse.json(
+            { error: error.message || 'Failed to update warehouse' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function DELETE(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await auth();
+
+        if (!session || session.user?.role !== 'admin') {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
+        const { id } = await params;
+
+        await dbConnect();
+
+        const deletedWarehouse = await Warehouse.findByIdAndDelete(id);
+
+        if (!deletedWarehouse) {
+            return NextResponse.json(
+                { error: 'Warehouse not found' },
+                { status: 404 }
+            );
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: 'Warehouse deleted successfully',
+        });
+    } catch (error: any) {
+        console.error('Error deleting warehouse:', error);
+        return NextResponse.json(
+            { error: 'Failed to delete warehouse' },
+            { status: 500 }
+        );
+    }
+}

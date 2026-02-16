@@ -11,6 +11,8 @@ import {
     X,
     MapPin,
     ClipboardList,
+    Edit2,
+    Trash2
 } from 'lucide-react';
 
 interface Organization {
@@ -39,6 +41,7 @@ export default function CompaniesPage() {
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
     const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
 
 
@@ -46,6 +49,7 @@ export default function CompaniesPage() {
     const [showWarehouseModal, setShowWarehouseModal] = useState(false);
     const [orgWarehouses, setOrgWarehouses] = useState<Warehouse[]>([]);
     const [whLoading, setWhLoading] = useState(false);
+    const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
 
     const [formData, setFormData] = useState({ name: '', code: '', email: '', phone: '', address: '' });
     const [whFormData, setWhFormData] = useState({ name: '', code: '', location: '' });
@@ -99,14 +103,19 @@ export default function CompaniesPage() {
         e.preventDefault();
         setError(''); setSuccess(''); setSubmitting(true);
         try {
-            const res = await fetch('/api/organizations', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+            const url = editingOrg ? `/api/organizations/${editingOrg._id}` : '/api/organizations';
+            const method = editingOrg ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method, headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
             });
             if (res.ok) {
-                setSuccess(`Added company: ${formData.name}`);
+                setSuccess(editingOrg ? `Updated company: ${formData.name}` : `Added company: ${formData.name}`);
                 setFormData({ name: '', code: '', email: '', phone: '', address: '' });
-                fetchOrganizations(); setTimeout(() => setShowCreateModal(false), 2000);
+                setEditingOrg(null);
+                fetchOrganizations();
+                setTimeout(() => { setShowCreateModal(false); setSuccess(''); }, 2000);
             } else { setError((await res.json()).error); }
         } catch (err) { setError('Error saving company'); } finally { setSubmitting(false); }
     };
@@ -115,16 +124,50 @@ export default function CompaniesPage() {
     const handleCreateWarehouse = async (e: React.FormEvent) => {
         e.preventDefault(); if (!selectedOrg) return; setSubmitting(true); setWhError('');
         try {
-            const res = await fetch('/api/warehouses', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+            const url = editingWarehouse ? `/api/warehouses/${editingWarehouse._id}` : '/api/warehouses';
+            const method = editingWarehouse ? 'PATCH' : 'POST';
+
+            const res = await fetch(url, {
+                method, headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...whFormData, organization: selectedOrg._id }),
             });
             if (res.ok) {
                 setWhFormData({ name: '', code: '', location: '' });
+                setEditingWarehouse(null);
                 fetchWarehouses(selectedOrg._id);
             }
             else { setWhError((await res.json()).error); }
         } catch (err) { } finally { setSubmitting(false); }
+    };
+
+    const handleDeleteOrganization = async (orgId: string, orgName: string) => {
+        if (!confirm(`Are you sure you want to delete "${orgName}"? This will also delete all associated warehouses and products. This action cannot be undone.`)) return;
+        try {
+            const res = await fetch(`/api/organizations/${orgId}`, { method: 'DELETE' });
+            if (res.ok) {
+                setSuccess(`${orgName} deleted successfully`);
+                fetchOrganizations();
+                setTimeout(() => setSuccess(''), 3000);
+            } else {
+                setError((await res.json()).error || 'Failed to delete company');
+            }
+        } catch (err) {
+            setError('Failed to delete company');
+        }
+    };
+
+    const handleDeleteWarehouse = async (whId: string, whName: string) => {
+        if (!confirm(`Are you sure you want to delete "${whName}"? This will also delete all associated products. This action cannot be undone.`)) return;
+        try {
+            const res = await fetch(`/api/warehouses/${whId}`, { method: 'DELETE' });
+            if (res.ok) {
+                fetchWarehouses(selectedOrg!._id);
+            } else {
+                setWhError((await res.json()).error || 'Failed to delete warehouse');
+            }
+        } catch (err) {
+            setWhError('Failed to delete warehouse');
+        }
     };
 
 
@@ -157,7 +200,7 @@ export default function CompaniesPage() {
                         <thead>
                             <tr className="bg-zinc-50 border-b border-zinc-200">
                                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">Company Name</th>
-                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Locations</th>
+                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-200">
@@ -168,13 +211,33 @@ export default function CompaniesPage() {
                                         <div className="text-xs font-medium text-zinc-400 mt-0.5 uppercase tracking-widest font-mono">{org.code}</div>
                                     </td>
                                     <td className="px-6 py-5 text-right">
-                                        <button
-                                            onClick={() => { setSelectedOrg(org); fetchWarehouses(org._id); setShowWarehouseModal(true); }}
-                                            className="border border-zinc-200 px-4 py-2 hover:border-black rounded-lg text-xs font-bold transition-all text-zinc-600 inline-flex items-center"
-                                        >
-                                            <WarehouseIcon className="w-3 h-3 mr-2" />
-                                            Warehouses
-                                        </button>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={() => { setSelectedOrg(org); fetchWarehouses(org._id); setShowWarehouseModal(true); }}
+                                                className="border border-zinc-200 px-4 py-2 hover:border-black rounded-lg text-xs font-bold transition-all text-zinc-600 inline-flex items-center"
+                                            >
+                                                <WarehouseIcon className="w-3 h-3 mr-2" />
+                                                Warehouses
+                                            </button>
+                                            {isAdmin && (
+                                                <>
+                                                    <button
+                                                        onClick={() => { setEditingOrg(org); setFormData({ name: org.name, code: org.code, email: org.email || '', phone: org.phone || '', address: org.address || '' }); setShowCreateModal(true); }}
+                                                        className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-600 hover:text-black"
+                                                        title="Edit company"
+                                                    >
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteOrganization(org._id, org.name)}
+                                                        className="p-2 hover:bg-red-50 rounded-lg transition-colors text-zinc-600 hover:text-red-600"
+                                                        title="Delete company"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -183,19 +246,23 @@ export default function CompaniesPage() {
                 </div>
             </main>
 
-            {/* Create Company Modal */}
+            {/* Create/Edit Company Modal */}
             {showCreateModal && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl">
-                        <h3 className="text-xl font-bold mb-6 border-b border-zinc-100 pb-4 text-black">Add New Company</h3>
+                        <h3 className="text-xl font-bold mb-6 border-b border-zinc-100 pb-4 text-black">
+                            {editingOrg ? 'Edit Company' : 'Add New Company'}
+                        </h3>
                         <form onSubmit={handleCreateOrganization} className="space-y-4">
                             <input type="text" placeholder="Company Name" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm" />
-                            <input type="text" placeholder="Unique Code" required value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm" />
+                            <input type="text" placeholder="Unique Code" required value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm" disabled={!!editingOrg} />
                             {error && <p className="text-xs font-bold text-red-500 uppercase tracking-widest">{error}</p>}
                             {success && <p className="text-xs font-bold text-green-500 uppercase tracking-widest">{success}</p>}
                             <div className="flex space-x-3 pt-6">
-                                <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 font-bold text-sm border border-zinc-200 py-3 rounded-xl hover:bg-zinc-50">Cancel</button>
-                                <button type="submit" disabled={submitting} className="flex-1 bg-black text-white py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50">Save Company</button>
+                                <button type="button" onClick={() => { setShowCreateModal(false); setEditingOrg(null); setFormData({ name: '', code: '', email: '', phone: '', address: '' }); }} className="flex-1 font-bold text-sm border border-zinc-200 py-3 rounded-xl hover:bg-zinc-50">Cancel</button>
+                                <button type="submit" disabled={submitting} className="flex-1 bg-black text-white py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50">
+                                    {editingOrg ? 'Update Company' : 'Save Company'}
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -226,12 +293,33 @@ export default function CompaniesPage() {
                                                         <MapPin className="w-3 h-3 mr-1" /> {wh.location || 'Location Not Set'}
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={() => router.push(`/dashboard/warehouses/${wh._id}`)}
-                                                    className="p-2.5 bg-zinc-50 text-black border border-zinc-200 rounded-xl hover:bg-black hover:text-white transition-all shadow-sm group-hover:shadow-md"
-                                                >
-                                                    <ClipboardList className="w-4 h-4" />
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => router.push(`/dashboard/warehouses/${wh._id}`)}
+                                                        className="p-2.5 bg-zinc-50 text-black border border-zinc-200 rounded-xl hover:bg-black hover:text-white transition-all shadow-sm group-hover:shadow-md"
+                                                        title="View inventory"
+                                                    >
+                                                        <ClipboardList className="w-4 h-4" />
+                                                    </button>
+                                                    {isAdmin && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => { setEditingWarehouse(wh); setWhFormData({ name: wh.name, code: wh.code, location: wh.location || '' }); }}
+                                                                className="p-2.5 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-600 hover:text-black"
+                                                                title="Edit warehouse"
+                                                            >
+                                                                <Edit2 className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteWarehouse(wh._id, wh.name)}
+                                                                className="p-2.5 hover:bg-red-50 rounded-lg transition-colors text-zinc-600 hover:text-red-600"
+                                                                title="Delete warehouse"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                         {orgWarehouses.length === 0 && <div className="py-20 text-center border border-dashed border-zinc-200 rounded-3xl text-zinc-300 font-bold text-xs uppercase">No warehouses registered for this company</div>}
@@ -240,7 +328,10 @@ export default function CompaniesPage() {
                             </div>
                             {(isAdmin || isStoreManager) && (
                                 <div className="p-8 border border-zinc-200 bg-zinc-50/30 rounded-3xl self-start sticky top-0">
-                                    <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500"><Plus className="w-4 h-4 mr-3 text-black" /> Add Operational Node</h4>
+                                    <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500">
+                                        <Plus className="w-4 h-4 mr-3 text-black" />
+                                        {editingWarehouse ? 'Edit Warehouse' : 'Add Operational Node'}
+                                    </h4>
                                     <form onSubmit={handleCreateWarehouse} className="space-y-4">
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Branch Name</label>
@@ -248,13 +339,24 @@ export default function CompaniesPage() {
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Unique Node Code</label>
-                                            <input type="text" placeholder="e.g. WH-001" required value={whFormData.code} onChange={e => setWhFormData({ ...whFormData, code: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
+                                            <input type="text" placeholder="e.g. WH-001" required value={whFormData.code} onChange={e => setWhFormData({ ...whFormData, code: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" disabled={!!editingWarehouse} />
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">City / Region</label>
                                             <input type="text" placeholder="e.g. Karachi South" required value={whFormData.location} onChange={e => setWhFormData({ ...whFormData, location: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
                                         </div>
-                                        <button type="submit" disabled={submitting} className="w-full py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all shadow-md disabled:opacity-50">Initialize Warehouse</button>
+                                        {editingWarehouse && (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setEditingWarehouse(null); setWhFormData({ name: '', code: '', location: '' }); }}
+                                                className="w-full py-3 border border-zinc-200 text-black font-bold text-sm rounded-xl hover:bg-zinc-100 transition-all"
+                                            >
+                                                Cancel Edit
+                                            </button>
+                                        )}
+                                        <button type="submit" disabled={submitting} className="w-full py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all shadow-md disabled:opacity-50">
+                                            {editingWarehouse ? 'Update Warehouse' : 'Initialize Warehouse'}
+                                        </button>
                                     </form>
                                     {whError && <p className="mt-4 text-xs font-bold text-red-500 text-center uppercase tracking-widest">{whError}</p>}
                                 </div>

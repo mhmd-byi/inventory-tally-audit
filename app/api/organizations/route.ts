@@ -28,6 +28,10 @@ export async function GET() {
             if (role === 'store_manager') {
                 if (!user.organization) return NextResponse.json([]);
                 query = { _id: user.organization };
+            } else if (role === 'lead_auditor') {
+                // Lead Auditor sees only their assigned organization
+                if (!user.organization) return NextResponse.json([]);
+                query = { _id: user.organization };
             } else if (role === 'auditor') {
                 if (user.organization) {
                     query = { _id: user.organization };

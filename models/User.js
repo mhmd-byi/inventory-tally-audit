@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ['admin', 'store_manager', 'auditor'],
+            enum: ['admin', 'store_manager', 'auditor', 'lead_auditor'],
             default: 'auditor',
         },
         // Single organization for Store Managers

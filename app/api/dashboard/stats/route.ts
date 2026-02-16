@@ -62,6 +62,11 @@ export async function GET() {
                         const warehouses = await Warehouse.find({ organization: user.organization }).select('_id');
                         warehouseFilter = { warehouse: { $in: warehouses.map((w: any) => w._id) } };
                     }
+                } else if (role === 'lead_auditor' && user.organization) {
+                    // Lead auditor sees all warehouses in their organization
+                    orgFilter = { _id: user.organization };
+                    const warehouses = await Warehouse.find({ organization: user.organization }).select('_id');
+                    warehouseFilter = { warehouse: { $in: warehouses.map((w: any) => w._id) } };
                 } else if (role === 'auditor' && user.organization) {
                     orgFilter = { _id: user.organization };
                     if (user.warehouses && user.warehouses.length > 0) {

@@ -41,6 +41,13 @@ export async function GET(request: Request) {
                 if (orgId) {
                     query.organization = orgId;
                 }
+            } else if (session.user?.role === 'lead_auditor') {
+                // Lead Auditor has access to all warehouses in their organization
+                if (!user.organization) return NextResponse.json([]);
+                query = { organization: user.organization };
+                if (orgId && user.organization.toString() !== orgId) {
+                    return NextResponse.json({ error: 'Unauthorized organization access' }, { status: 403 });
+                }
             } else if (session.user?.role === 'auditor') {
                 if (user.warehouses && user.warehouses.length > 0) {
                     query = { _id: { $in: user.warehouses } };

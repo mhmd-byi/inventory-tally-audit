@@ -244,6 +244,15 @@ export default function UsersPage() {
                                         <div className="flex flex-col gap-1.5">
                                             {user.role === 'admin' ? (
                                                 <span className="text-[10px] font-bold uppercase text-zinc-400">All Systems Access</span>
+                                            ) : user.role === 'lead_auditor' ? (
+                                                <div className="space-y-1">
+                                                    <div className="text-[10px] font-bold uppercase text-black">
+                                                        {typeof user.organization === 'object' ? (user.organization as any)?.name : '-'}
+                                                    </div>
+                                                    <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-tight">
+                                                        ✓ Full Organization Access
+                                                    </span>
+                                                </div>
                                             ) : user.role === 'auditor' ? (
                                                 <div className="space-y-1">
                                                     <div className="text-[10px] font-bold uppercase text-black">
@@ -305,6 +314,7 @@ export default function UsersPage() {
 
                                 <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-bold text-sm appearance-none shadow-sm">
                                     <option value="auditor">Auditor (Specific Warehouses)</option>
+                                    <option value="lead_auditor">Lead Auditor (Organization-wide)</option>
                                     <option value="store_manager">Store Manager (Single Company)</option>
                                     <option value="admin">System Admin</option>
                                 </select>
@@ -330,6 +340,22 @@ export default function UsersPage() {
                                                     {warehouses.map(wh => <option key={wh._id} value={wh._id}>{wh.name}</option>)}
                                                 </select>
                                             </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {formData.role === 'lead_auditor' && (
+                                    <div className="p-5 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-4">
+                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Lead Auditor Assignment</h4>
+                                        <div>
+                                            <label className="text-[9px] font-black uppercase text-zinc-400 ml-1 mb-1 block">Company (Full Access)</label>
+                                            <select required value={formData.organizationId} onChange={(e) => {
+                                                setFormData({ ...formData, organizationId: e.target.value });
+                                            }} className="w-full px-3 py-2 border border-zinc-200 rounded-lg font-bold text-xs uppercase outline-none shadow-sm">
+                                                <option value="">Select Company</option>
+                                                {organizations.map(org => <option key={org._id} value={org._id}>{org.name}</option>)}
+                                            </select>
+                                            <p className="text-[9px] text-zinc-400 mt-2 ml-1">Lead Auditor will have access to ALL warehouses in this company</p>
                                         </div>
                                     </div>
                                 )}

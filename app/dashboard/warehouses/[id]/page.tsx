@@ -74,7 +74,7 @@ export default function WarehouseAuditPage() {
 
     const isAdmin = session?.user?.role === 'admin';
     const isStoreManager = session?.user?.role === 'store_manager' || session?.user?.role === 'admin';
-    const isAuditor = session?.user?.role === 'auditor' || session?.user?.role === 'admin';
+    const isAuditor = session?.user?.role === 'auditor' || session?.user?.role === 'lead_auditor' || session?.user?.role === 'admin';
 
     // Debounced search effect
     useEffect(() => {

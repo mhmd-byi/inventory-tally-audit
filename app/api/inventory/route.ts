@@ -37,6 +37,13 @@ export async function GET(request: Request) {
                 if (user.warehouse?.toString() !== warehouseId) {
                     return NextResponse.json({ error: 'Unauthorized warehouse access' }, { status: 403 });
                 }
+            } else if (role === 'lead_auditor') {
+                // Lead auditor can access any warehouse in their organization
+                const Warehouse = (await import('@/models/Warehouse')).default;
+                const warehouse = await Warehouse.findById(warehouseId);
+                if (!warehouse || warehouse.organization.toString() !== user.organization?.toString()) {
+                    return NextResponse.json({ error: 'Unauthorized warehouse access' }, { status: 403 });
+                }
             } else if (role === 'auditor') {
                 if (user.warehouses && user.warehouses.length > 0) {
                     if (!user.warehouses.map((id: any) => id.toString()).includes(warehouseId)) {
@@ -163,7 +170,7 @@ export async function POST(request: Request) {
             stock.bookStock = Number(bookStock);
         }
 
-        const isAuditRequest = type === 'audit' || session.user?.role === 'auditor';
+        const isAuditRequest = type === 'audit' || session.user?.role === 'auditor' || session.user?.role === 'lead_auditor';
 
         if (isAuditRequest) {
             // SAVE to Audit record, DO NOT delete or overwrite Stock quantity

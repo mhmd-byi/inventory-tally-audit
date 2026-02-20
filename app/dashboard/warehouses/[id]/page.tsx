@@ -92,7 +92,8 @@ export default function WarehouseAuditPage() {
                 setFilteredInventory(inventory);
             } else {
                 const filtered = inventory.filter(item =>
-                    item.product.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    item.product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    item.product.sku.toLowerCase().includes(searchQuery.toLowerCase())
                 );
                 setFilteredInventory(filtered);
             }
@@ -600,8 +601,8 @@ export default function WarehouseAuditPage() {
                                                 value={inputs[item.product._id]?.auditVal || ''}
                                                 onChange={(e) => handleInputChange(item.product._id, 'audit', e.target.value)}
                                                 className={`w-24 px-3 py-2 border rounded-lg font-bold text-sm focus:ring-2 focus:ring-black outline-none text-center transition-all ${isAuditor && warehouse?.auditStatus === 'in_progress'
-                                                        ? 'bg-white border-zinc-200 focus:border-black'
-                                                        : 'bg-zinc-50 border-zinc-100 text-zinc-400 cursor-not-allowed opacity-60'
+                                                    ? 'bg-white border-zinc-200 focus:border-black'
+                                                    : 'bg-zinc-50 border-zinc-100 text-zinc-400 cursor-not-allowed opacity-60'
                                                     }`}
                                                 placeholder="Count"
                                             />

@@ -45,6 +45,12 @@ export async function POST(request: Request) {
             userData.organization = organizationId;
             userData.organizations = [organizationId];
             userData.warehouses = warehouseIds;
+        } else if (role === 'lead_auditor') {
+            if (!organizationId) {
+                return NextResponse.json({ error: 'Company is required for lead auditors' }, { status: 400 });
+            }
+            userData.organization = organizationId;
+            userData.organizations = [organizationId];
         }
 
         const user = await User.create(userData);

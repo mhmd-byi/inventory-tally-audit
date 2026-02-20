@@ -11,6 +11,7 @@ import {
     X,
     MapPin,
     ClipboardList,
+    ClipboardCheck,
     Edit2,
     Trash2
 } from 'lucide-react';
@@ -61,11 +62,12 @@ export default function CompaniesPage() {
 
     const isAdmin = session?.user?.role === 'admin';
     const isStoreManager = session?.user?.role === 'store_manager';
+    const isLeadAuditor = session?.user?.role === 'lead_auditor' || session?.user?.role === 'admin';
 
     useEffect(() => {
         if (status === 'unauthenticated') {
             router.push('/login');
-        } else if (status === 'authenticated' && !['admin', 'store_manager', 'auditor'].includes(session?.user?.role || '')) {
+        } else if (status === 'authenticated' && !['admin', 'store_manager', 'auditor', 'lead_auditor'].includes(session?.user?.role || '')) {
             router.push('/dashboard');
         }
     }, [status, session, router]);
@@ -301,6 +303,15 @@ export default function CompaniesPage() {
                                                     >
                                                         <ClipboardList className="w-4 h-4" />
                                                     </button>
+                                                    {isLeadAuditor && (
+                                                        <button
+                                                            onClick={() => router.push(`/dashboard/warehouses/${wh._id}`)}
+                                                            className="p-2.5 bg-zinc-50 text-emerald-600 border border-zinc-200 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm group-hover:shadow-md"
+                                                            title="Verification Checklist"
+                                                        >
+                                                            <ClipboardCheck className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                     {isAdmin && (
                                                         <>
                                                             <button

@@ -22,15 +22,21 @@ export async function GET() {
         if (role !== 'admin') {
             const user = await User.findById(userId);
             if (!user) {
+                console.log('DEBUG: User not found for ID:', userId);
                 return NextResponse.json([]);
             }
+
+            console.log(`DEBUG: User Role: ${role}, Organization: ${user.organization}`);
 
             if (role === 'store_manager') {
                 if (!user.organization) return NextResponse.json([]);
                 query = { _id: user.organization };
             } else if (role === 'lead_auditor') {
                 // Lead Auditor sees only their assigned organization
-                if (!user.organization) return NextResponse.json([]);
+                if (!user.organization) {
+                    console.log('DEBUG: Lead Auditor has no assigned organization');
+                    return NextResponse.json([]);
+                }
                 query = { _id: user.organization };
             } else if (role === 'auditor') {
                 if (user.organization) {

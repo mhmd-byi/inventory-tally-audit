@@ -142,6 +142,12 @@ export default function UsersPage() {
             }
         }
 
+        if (formData.role === 'lead_auditor') {
+            if (!formData.organizationId) {
+                setError('Please select a company for the Lead Auditor'); setSubmitting(false); return;
+            }
+        }
+
         try {
             const response = await fetch('/api/users/create', {
                 method: 'POST',

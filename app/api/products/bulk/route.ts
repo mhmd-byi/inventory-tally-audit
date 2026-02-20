@@ -51,10 +51,11 @@ export async function POST(request: Request) {
             const unit = row.Unit || row.unit || 'pcs';
             const category = row.Category || row.category || '';
             const description = row.Description || row.description || '';
-            const bookStock = row['Book Stock'] || row.book_stock || row.bookStock || 0;
+            const bookStock = row['Book Stock'] || row.book_stock || row.bookStock || row['Book stock qty'] || 0;
+            const bookStockValue = row['Book Stock Value'] || row.bookStockValue || row['Book stock Value'] || 0;
 
             if (!name || !sku) {
-                results.errors.push(`Row ${data.indexOf(row) + 2}: Missing name or SKU`);
+                results.errors.push(`Row ${data.indexOf(row) + 2}: Missing name, SKU, or Book Stock information`);
                 results.skipped++;
                 continue;
             }
@@ -77,7 +78,8 @@ export async function POST(request: Request) {
                     organization: organizationId,
                     warehouse: warehouseId,
                     status: 'active',
-                    bookStock: Number(bookStock) || 0
+                    bookStock: Number(bookStock) || 0,
+                    bookStockValue: Number(bookStockValue) || 0
                 });
                 results.success++;
             } catch (err: any) {

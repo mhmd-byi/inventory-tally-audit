@@ -84,6 +84,7 @@ export async function GET(request: Request) {
                     product,
                     quantity: stock ? stock.quantity : 0,
                     bookStock: stock ? stock.bookStock : (product.bookStock || 0),
+                    bookStockValue: stock ? (stock as any).bookStockValue : (product.bookStockValue || 0),
                     lastAuditDate: stock ? stock.lastAuditDate : (audit ? audit.latestAudit.createdAt : null),
                     lastAuditValue: audit ? audit.latestAudit.physicalQuantity : null,
                     stockId: stock ? stock._id : null
@@ -122,7 +123,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { productId, warehouseId, quantity, bookStock, type, notes } = body;
+        const { productId, warehouseId, quantity, bookStock, bookStockValue, type, notes } = body;
 
         if (!productId || !warehouseId) {
             return NextResponse.json({ error: 'Product and Warehouse are required' }, { status: 400 });
@@ -164,10 +165,16 @@ export async function POST(request: Request) {
                 product: productId,
                 warehouse: warehouseId,
                 quantity: 0,
-                bookStock: bookStock !== undefined ? Number(bookStock) : (product?.bookStock || 0)
+                bookStock: bookStock !== undefined ? Number(bookStock) : (product?.bookStock || 0),
+                bookStockValue: bookStockValue !== undefined ? Number(bookStockValue) : (product?.bookStockValue || 0)
             });
-        } else if (bookStock !== undefined && session.user?.role === 'admin') {
-            stock.bookStock = Number(bookStock);
+        } else {
+            if (bookStock !== undefined && (type === 'bookUpdate' || session.user?.role === 'admin')) {
+                stock.bookStock = Number(bookStock);
+            }
+            if (bookStockValue !== undefined && (type === 'bookValueUpdate' || session.user?.role === 'admin')) {
+                (stock as any).bookStockValue = Number(bookStockValue);
+            }
         }
 
         const isAuditRequest = type === 'audit' || session.user?.role === 'auditor' || session.user?.role === 'lead_auditor';

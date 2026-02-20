@@ -1,4 +1,4 @@
-Name,SKU,Category,Unit,Description,Book Stock
+Name,SKU,Category,Unit,Description,Book Stock,Book Stock Value
 Product A,SKU-001,Electronics,pcs,High quality electronic item,100
 Product B,SKU-002,Furniture,units,Solid wood table,50
 Product C,SKU-003,Hardware,kg,Industrial grade bolts,200

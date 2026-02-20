@@ -27,12 +27,15 @@ interface Product {
     name: string;
     sku: string;
     unit: string;
+    bookStock?: number;
+    bookStockValue?: number;
 }
 
 interface InventoryItem {
-    product: Product & { bookStock?: number };
+    product: Product;
     quantity: number;
     bookStock: number;
+    bookStockValue: number;
     lastAuditDate: string | null;
     lastAuditValue: number | null;
     stockId: string | null;
@@ -65,14 +68,14 @@ export default function WarehouseAuditPage() {
 
     // Product Modal States
     const [showProductModal, setShowProductModal] = useState(false);
-    const [prodFormData, setProdFormData] = useState({ name: '', sku: '', category: '', unit: 'pcs', description: '', bookStock: '' });
+    const [prodFormData, setProdFormData] = useState({ name: '', sku: '', category: '', unit: 'pcs', description: '', bookStock: '', bookStockValue: '' });
     const [prodError, setProdError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [bulkUploading, setBulkUploading] = useState(false);
     const [bulkSummary, setBulkSummary] = useState<any>(null);
 
     // Local state for inputs
-    const [inputs, setInputs] = useState<{ [productId: string]: { systemVal: string, auditVal: string, bookStockVal: string } }>({});
+    const [inputs, setInputs] = useState<{ [productId: string]: { systemVal: string, auditVal: string, bookStockVal: string, bookStockValue: string } }>({});
 
     // Checklist states
     const [showChecklistModal, setShowChecklistModal] = useState(false);
@@ -114,11 +117,12 @@ export default function WarehouseAuditPage() {
                 body: JSON.stringify({
                     ...prodFormData,
                     warehouseId,
-                    bookStock: Number(prodFormData.bookStock) || 0
+                    bookStock: Number(prodFormData.bookStock) || 0,
+                    bookStockValue: Number(prodFormData.bookStockValue) || 0
                 }),
             });
             if (res.ok) {
-                setProdFormData({ name: '', sku: '', category: '', unit: 'pcs', description: '', bookStock: '' });
+                setProdFormData({ name: '', sku: '', category: '', unit: 'pcs', description: '', bookStock: '', bookStockValue: '' });
                 setShowProductModal(false);
                 fetchData();
             } else {
@@ -195,7 +199,8 @@ export default function WarehouseAuditPage() {
                 initialInputs[item.product._id] = {
                     systemVal: item.quantity.toString(),
                     auditVal: item.lastAuditValue !== null ? item.lastAuditValue.toString() : '',
-                    bookStockVal: item.bookStock !== undefined ? item.bookStock.toString() : (item.product.bookStock || 0).toString()
+                    bookStockVal: item.bookStock !== undefined ? item.bookStock.toString() : (item.product.bookStock || 0).toString(),
+                    bookStockValue: item.bookStockValue !== undefined ? item.bookStockValue.toString() : (item.product.bookStockValue || 0).toString()
                 };
             });
             setInputs(initialInputs);
@@ -232,20 +237,26 @@ export default function WarehouseAuditPage() {
         }
     };
 
-    const handleInputChange = (productId: string, type: 'system' | 'audit' | 'bookStock', value: string) => {
+    const handleInputChange = (productId: string, type: 'system' | 'audit' | 'bookStock' | 'bookStockValue', value: string) => {
         setInputs(prev => ({
             ...prev,
             [productId]: {
                 ...prev[productId],
-                [type === 'system' ? 'systemVal' : type === 'audit' ? 'auditVal' : 'bookStockVal']: value
+                [type === 'system' ? 'systemVal' : type === 'audit' ? 'auditVal' : (type === 'bookStock' ? 'bookStockVal' : 'bookStockValue')]: value
             }
         }));
     };
 
-    const handleSave = async (productId: string, role: 'store_manager' | 'auditor' | 'admin') => {
-        const val = role === 'store_manager' ? inputs[productId].systemVal : role === 'auditor' ? inputs[productId].auditVal : inputs[productId].bookStockVal;
+    const handleSave = async (productId: string, target: 'system' | 'audit' | 'bookStock' | 'bookStockValue') => {
+        const val = target === 'system'
+            ? inputs[productId].systemVal
+            : target === 'audit'
+                ? inputs[productId].auditVal
+                : target === 'bookStock'
+                    ? inputs[productId].bookStockVal
+                    : inputs[productId].bookStockValue;
 
-        if (val === '' && role === 'auditor') return; // Audit value can't be empty if saving as auditor
+        if (val === '' && target === 'audit') return; // Audit value can't be empty if saving as auditor
 
         setSaveStatus(prev => ({ ...prev, [productId]: 'saving' }));
 
@@ -253,11 +264,13 @@ export default function WarehouseAuditPage() {
             const body: any = {
                 productId,
                 warehouseId,
-                type: role === 'store_manager' ? 'set' : (role === 'auditor' ? 'audit' : 'bookUpdate')
+                type: target === 'system' ? 'set' : (target === 'audit' ? 'audit' : (target === 'bookStock' ? 'bookUpdate' : 'bookValueUpdate'))
             };
 
-            if (role === 'admin') {
+            if (target === 'bookStock') {
                 body.bookStock = Number(val);
+            } else if (target === 'bookStockValue') {
+                body.bookStockValue = Number(val);
             } else {
                 body.quantity = Number(val);
             }
@@ -272,14 +285,18 @@ export default function WarehouseAuditPage() {
                 setSaveStatus(prev => ({ ...prev, [productId]: 'success' }));
                 setTimeout(() => {
                     setSaveStatus(prev => ({ ...prev, [productId]: 'idle' }));
-                    if (role === 'store_manager') {
+                    if (target === 'system') {
                         // Update the baseline quantity in UI if manager saved
                         setInventory(prev => prev.map(item =>
                             item.product._id === productId ? { ...item, quantity: Number(val) } : item
                         ));
-                    } else if (role === 'admin') {
+                    } else if (target === 'bookStock') {
                         setInventory(prev => prev.map(item =>
                             item.product._id === productId ? { ...item, bookStock: Number(val) } : item
+                        ));
+                    } else if (target === 'bookStockValue') {
+                        setInventory(prev => prev.map(item =>
+                            item.product._id === productId ? { ...item, bookStockValue: Number(val) } : item
                         ));
                     }
                 }, 2000);
@@ -520,6 +537,7 @@ export default function WarehouseAuditPage() {
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Item Details</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-24">Unit</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-40">Book Stock (ERP)</th>
+                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-40">Book Stock Value</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-48">Store Manager / Set Stock</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-48">Auditor / Physical Count</th>
                                 {/* <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-right w-24">Status</th> */}
@@ -559,7 +577,30 @@ export default function WarehouseAuditPage() {
                                             />
                                             {isAdmin && (
                                                 <button
-                                                    onClick={() => handleSave(item.product._id, 'admin')}
+                                                    onClick={() => handleSave(item.product._id, 'bookStock')}
+                                                    className="p-1.5 bg-zinc-100 text-black rounded-md hover:bg-black hover:text-white transition-all disabled:opacity-50"
+                                                    disabled={saveStatus[item.product._id] === 'saving'}
+                                                >
+                                                    <Save className="w-3 h-3" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+
+                                    <td className="px-6 py-6 text-center">
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <input
+                                                type="number"
+                                                disabled={!isAdmin}
+                                                value={inputs[item.product._id]?.bookStockValue || ''}
+                                                onChange={(e) => handleInputChange(item.product._id, 'bookStockValue', e.target.value)}
+                                                className={`w-20 px-2 py-1.5 border rounded-lg font-bold text-xs focus:ring-2 focus:ring-black outline-none text-center transition-all ${isAdmin ? 'bg-white border-zinc-200 focus:border-black' : 'bg-transparent border-transparent text-black cursor-default'
+                                                    }`}
+                                                placeholder="Value"
+                                            />
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={() => handleSave(item.product._id, 'bookStockValue')}
                                                     className="p-1.5 bg-zinc-100 text-black rounded-md hover:bg-black hover:text-white transition-all disabled:opacity-50"
                                                     disabled={saveStatus[item.product._id] === 'saving'}
                                                 >
@@ -583,7 +624,7 @@ export default function WarehouseAuditPage() {
                                             />
                                             {isStoreManager && (
                                                 <button
-                                                    onClick={() => handleSave(item.product._id, 'store_manager')}
+                                                    onClick={() => handleSave(item.product._id, 'system')}
                                                     className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
                                                     disabled={saveStatus[item.product._id] === 'saving'}
                                                 >
@@ -608,7 +649,7 @@ export default function WarehouseAuditPage() {
                                             />
                                             {isAuditor && (
                                                 <button
-                                                    onClick={() => handleSave(item.product._id, 'auditor')}
+                                                    onClick={() => handleSave(item.product._id, 'audit')}
                                                     className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
                                                     disabled={saveStatus[item.product._id] === 'saving' || inputs[item.product._id]?.auditVal === '' || warehouse?.auditStatus !== 'in_progress'}
                                                 >
@@ -733,16 +774,29 @@ export default function WarehouseAuditPage() {
                                                 className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm transition-colors"
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Initial Book Stock</label>
-                                            <input
-                                                type="number"
-                                                placeholder="0"
-                                                required
-                                                value={prodFormData.bookStock}
-                                                onChange={e => setProdFormData({ ...prodFormData, bookStock: e.target.value })}
-                                                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm transition-colors"
-                                            />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Initial Book Stock</label>
+                                                <input
+                                                    type="number"
+                                                    placeholder="0"
+                                                    required
+                                                    value={prodFormData.bookStock}
+                                                    onChange={e => setProdFormData({ ...prodFormData, bookStock: e.target.value })}
+                                                    className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm transition-colors"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Initial Book Value</label>
+                                                <input
+                                                    type="number"
+                                                    placeholder="0.00"
+                                                    required
+                                                    value={prodFormData.bookStockValue}
+                                                    onChange={e => setProdFormData({ ...prodFormData, bookStockValue: e.target.value })}
+                                                    className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm transition-colors"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                     <button

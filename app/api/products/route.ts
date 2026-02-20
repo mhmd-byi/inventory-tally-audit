@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, sku, description, category, unit, organizationId, warehouseId, bookStock } = body;
+        const { name, sku, description, category, unit, organizationId, warehouseId, bookStock, bookStockValue } = body;
 
         if (!name || !sku || !warehouseId) {
             return NextResponse.json({ error: 'Name, SKU and Warehouse are required' }, { status: 400 });
@@ -104,7 +104,8 @@ export async function POST(request: Request) {
             unit: unit || 'pcs',
             organization: finalOrgId,
             warehouse: warehouseId,
-            bookStock: bookStock ? Number(bookStock) : 0
+            bookStock: bookStock ? Number(bookStock) : 0,
+            bookStockValue: bookStockValue ? Number(bookStockValue) : 0
         });
 
         return NextResponse.json(product, { status: 201 });

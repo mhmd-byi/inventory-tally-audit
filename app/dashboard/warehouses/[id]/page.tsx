@@ -42,6 +42,7 @@ interface WarehouseDetails {
     _id: string;
     name: string;
     code: string;
+    auditStatus?: 'not_started' | 'in_progress' | 'completed';
     organization: {
         _id: string;
         name: string;
@@ -202,6 +203,31 @@ export default function WarehouseAuditPage() {
             setError(err.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleAuditControl = async (action: 'initiate' | 'close' | 'reset') => {
+        if (!confirm(`Are you sure you want to ${action === 'initiate' ? 'start the audit' : action === 'close' ? 'finalize and close the audit' : 'reset the audit status'}?`)) return;
+
+        try {
+            setSubmitting(true);
+            const res = await fetch(`/api/warehouses/${warehouseId}/audit-control`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+
+            if (res.ok) {
+                alert(`Audit ${action === 'initiate' ? 'started' : action === 'close' ? 'closed' : 'reset'} successfully!`);
+                fetchData();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to update audit status');
+            }
+        } catch (err) {
+            alert('Error updating audit status');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -391,6 +417,33 @@ export default function WarehouseAuditPage() {
                             <h2 className="text-3xl font-bold tracking-tight text-black">{warehouse.name}</h2>
                         </div>
                         <div className="flex items-center gap-3">
+                            {isLeadAuditor && (
+                                <>
+                                    {warehouse?.auditStatus === 'in_progress' ? (
+                                        <button
+                                            onClick={() => handleAuditControl('close')}
+                                            className="bg-red-600 text-white px-6 py-3 font-bold text-sm rounded-xl hover:bg-red-700 transition-all flex items-center shadow-lg"
+                                        >
+                                            <CheckCircle2 className="w-4 h-4 mr-2" /> Finish Audit
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleAuditControl('initiate')}
+                                            className="bg-emerald-600 text-white px-6 py-3 font-bold text-sm rounded-xl hover:bg-emerald-700 transition-all flex items-center shadow-lg"
+                                        >
+                                            <Save className="w-4 h-4 mr-2" /> Start Audit
+                                        </button>
+                                    )}
+                                    {warehouse?.auditStatus === 'completed' && (
+                                        <button
+                                            onClick={() => handleAuditControl('reset')}
+                                            className="border-2 border-zinc-200 text-zinc-500 px-4 py-3 font-bold text-xs rounded-xl hover:bg-zinc-50 transition-all"
+                                        >
+                                            Reset Status
+                                        </button>
+                                    )}
+                                </>
+                            )}
                             {isStoreManager && (
                                 <button
                                     onClick={() => setShowProductModal(true)}
@@ -409,6 +462,31 @@ export default function WarehouseAuditPage() {
                             )}
                         </div>
                     </div>
+
+                    {/* Audit Status Banner */}
+                    {isAuditor && !isAdmin && (
+                        <div className={`mt-6 p-4 rounded-2xl flex items-center justify-between ${warehouse?.auditStatus === 'in_progress' ? 'bg-emerald-50 border border-emerald-100' : 'bg-amber-50 border border-amber-100'}`}>
+                            <div className="flex items-center">
+                                {warehouse?.auditStatus === 'in_progress' ? (
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 mr-3" />
+                                ) : (
+                                    <AlertCircle className="w-5 h-5 text-amber-600 mr-3" />
+                                )}
+                                <div>
+                                    <p className={`text-sm font-bold ${warehouse?.auditStatus === 'in_progress' ? 'text-emerald-900' : 'text-amber-900'}`}>
+                                        {warehouse?.auditStatus === 'in_progress' ? 'Audit is LIVE' : 'Audit is LOCKED'}
+                                    </p>
+                                    <p className={`text-xs font-medium ${warehouse?.auditStatus === 'in_progress' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                        {warehouse?.auditStatus === 'in_progress'
+                                            ? 'You can now record physical counts.'
+                                            : warehouse?.auditStatus === 'completed'
+                                                ? 'This audit cycle has been completed.'
+                                                : 'Please wait for your Lead Auditor to start the session.'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Search Bar */}
                     <div className="mt-6 relative">
@@ -518,10 +596,12 @@ export default function WarehouseAuditPage() {
                                         <div className="flex items-center justify-center space-x-2">
                                             <input
                                                 type="number"
-                                                disabled={!isAuditor}
+                                                disabled={!isAuditor || warehouse?.auditStatus !== 'in_progress'}
                                                 value={inputs[item.product._id]?.auditVal || ''}
                                                 onChange={(e) => handleInputChange(item.product._id, 'audit', e.target.value)}
-                                                className={`w-24 px-3 py-2 border rounded-lg font-bold text-sm focus:ring-2 focus:ring-black outline-none text-center transition-all ${isAuditor ? 'bg-white border-zinc-200 focus:border-black' : 'bg-zinc-100 border-transparent text-zinc-400 cursor-not-allowed'
+                                                className={`w-24 px-3 py-2 border rounded-lg font-bold text-sm focus:ring-2 focus:ring-black outline-none text-center transition-all ${isAuditor && warehouse?.auditStatus === 'in_progress'
+                                                        ? 'bg-white border-zinc-200 focus:border-black'
+                                                        : 'bg-zinc-50 border-zinc-100 text-zinc-400 cursor-not-allowed opacity-60'
                                                     }`}
                                                 placeholder="Count"
                                             />
@@ -529,7 +609,7 @@ export default function WarehouseAuditPage() {
                                                 <button
                                                     onClick={() => handleSave(item.product._id, 'auditor')}
                                                     className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
-                                                    disabled={saveStatus[item.product._id] === 'saving' || inputs[item.product._id]?.auditVal === ''}
+                                                    disabled={saveStatus[item.product._id] === 'saving' || inputs[item.product._id]?.auditVal === '' || warehouse?.auditStatus !== 'in_progress'}
                                                 >
                                                     <CheckCircle2 className="w-4 h-4" />
                                                 </button>

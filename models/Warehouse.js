@@ -36,6 +36,18 @@ const warehouseSchema = new mongoose.Schema(
             enum: ['active', 'inactive'],
             default: 'active',
         },
+        auditStatus: {
+            type: String,
+            enum: ['not_started', 'in_progress', 'completed'],
+            default: 'not_started',
+        },
+        auditInitiatedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        },
+        auditInitiatedAt: {
+            type: Date,
+        },
     },
     {
         timestamps: true,

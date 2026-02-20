@@ -173,6 +173,13 @@ export async function POST(request: Request) {
         const isAuditRequest = type === 'audit' || session.user?.role === 'auditor' || session.user?.role === 'lead_auditor';
 
         if (isAuditRequest) {
+            // Check if audit is initiated (Only check for regular auditors, admins/lead auditors might need to bypass for testing or control)
+            if (session.user?.role === 'auditor' && warehouse.auditStatus !== 'in_progress') {
+                return NextResponse.json({
+                    error: 'Audit has not been initiated for this warehouse. Please contact your Lead Auditor.'
+                }, { status: 403 });
+            }
+
             // SAVE to Audit record, DO NOT delete or overwrite Stock quantity
             const physicalVal = Number(quantity);
             const systemVal = stock.quantity;

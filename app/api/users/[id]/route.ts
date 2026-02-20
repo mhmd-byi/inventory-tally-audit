@@ -10,16 +10,31 @@ export async function DELETE(
     try {
         const session = await auth();
 
-        if (!session || session.user?.role !== 'admin') {
+        if (!session || !['admin', 'lead_auditor'].includes(session.user?.role || '')) {
             return NextResponse.json(
                 { error: 'Unauthorized' },
                 { status: 401 }
             );
         }
 
-        // In Next.js 15+, params is a Promise and must be awaited
         const resolvedParams = await params;
         const { id } = resolvedParams;
+
+        await dbConnect();
+
+        // Lead Auditor restrictions
+        if (session.user?.role === 'lead_auditor') {
+            const targetUser = await User.findById(id);
+            if (!targetUser) {
+                return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            }
+            if (targetUser.role !== 'auditor') {
+                return NextResponse.json({ error: 'Lead Auditors can only delete Auditor accounts' }, { status: 403 });
+            }
+            if (targetUser.organization?.toString() !== session.user.organization) {
+                return NextResponse.json({ error: 'You can only delete users from your own organization' }, { status: 403 });
+            }
+        }
 
         // Get the current logged in user's ID safely
         const currentUserId = (session.user as any).id;
@@ -33,8 +48,6 @@ export async function DELETE(
                 { status: 400 }
             );
         }
-
-        await dbConnect();
 
         const deletedUser = await User.findByIdAndDelete(id);
 

@@ -13,7 +13,7 @@ export async function GET() {
     try {
         const session = await auth();
 
-        if (!session || session.user?.role !== 'admin') {
+        if (!session || !['admin', 'lead_auditor'].includes(session.user?.role || '')) {
             return NextResponse.json(
                 { error: 'Unauthorized' },
                 { status: 401 }
@@ -25,7 +25,20 @@ export async function GET() {
         // Get the model from mongoose to ensure we are using the one with the ref registered
         const UserModel = mongoose.models.User || User;
 
-        const users = await UserModel.find({}, { password: 0 })
+        let query = {};
+        if (session.user?.role === 'lead_auditor') {
+            const orgId = session.user.organization;
+            if (!orgId) return NextResponse.json([]);
+            query = {
+                role: 'auditor',
+                $or: [
+                    { organization: orgId },
+                    { organizations: orgId }
+                ]
+            };
+        }
+
+        const users = await UserModel.find(query, { password: 0 })
             .populate({
                 path: 'organization',
                 model: 'Organization',

@@ -62,20 +62,36 @@ export default function UsersPage() {
     const [success, setSuccess] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
+    const isAdmin = session?.user?.role === 'admin';
+    const isLeadAuditor = session?.user?.role === 'lead_auditor';
+
     useEffect(() => {
         if (status === 'unauthenticated') {
             router.push('/login');
-        } else if (status === 'authenticated' && session?.user?.role !== 'admin') {
+        } else if (status === 'authenticated' && !['admin', 'lead_auditor'].includes(session?.user?.role || '')) {
             router.push('/dashboard');
         }
     }, [status, session, router]);
 
     useEffect(() => {
-        if (status === 'authenticated' && session?.user?.role === 'admin') {
+        if (status === 'authenticated' && (isAdmin || isLeadAuditor)) {
             fetchUsers();
             fetchOrganizations();
         }
-    }, [status, session]);
+    }, [status, session, isAdmin, isLeadAuditor]);
+
+    useEffect(() => {
+        if (isLeadAuditor) {
+            setFormData(prev => ({ ...prev, role: 'auditor' }));
+        }
+    }, [isLeadAuditor]);
+
+    useEffect(() => {
+        if (isLeadAuditor && session?.user?.organization && formData.role === 'auditor') {
+            setFormData(prev => ({ ...prev, organizationId: session.user.organization || '' }));
+            fetchWarehouses(session.user.organization);
+        }
+    }, [isLeadAuditor, session, formData.role]);
 
     const fetchUsers = async () => {
         try {
@@ -318,12 +334,18 @@ export default function UsersPage() {
                                 <input type="email" placeholder="Email Address" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
                                 <input type="password" placeholder="Account Password" required value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
 
-                                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-bold text-sm appearance-none shadow-sm">
-                                    <option value="auditor">Auditor (Specific Warehouses)</option>
-                                    <option value="lead_auditor">Lead Auditor (Organization-wide)</option>
-                                    <option value="store_manager">Store Manager (Single Company)</option>
-                                    <option value="admin">System Admin</option>
-                                </select>
+                                {isAdmin ? (
+                                    <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-bold text-sm appearance-none shadow-sm">
+                                        <option value="auditor">Auditor (Specific Warehouses)</option>
+                                        <option value="lead_auditor">Lead Auditor (Organization-wide)</option>
+                                        <option value="store_manager">Store Manager (Single Company)</option>
+                                        <option value="admin">System Admin</option>
+                                    </select>
+                                ) : (
+                                    <div className="w-full px-4 py-3 border border-zinc-100 bg-zinc-50 rounded-xl font-bold text-sm text-zinc-500 flex items-center">
+                                        Auditor (Specific Warehouses)
+                                    </div>
+                                )}
 
                                 {formData.role === 'store_manager' && (
                                     <div className="p-5 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-4">
@@ -350,7 +372,7 @@ export default function UsersPage() {
                                     </div>
                                 )}
 
-                                {formData.role === 'lead_auditor' && (
+                                {formData.role === 'lead_auditor' && isAdmin && (
                                     <div className="p-5 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-4">
                                         <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Lead Auditor Assignment</h4>
                                         <div>
@@ -366,20 +388,32 @@ export default function UsersPage() {
                                     </div>
                                 )}
 
+
                                 {formData.role === 'auditor' && (
                                     <div className="p-5 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-4">
                                         <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Auditor Assignment</h4>
                                         <div className="space-y-4">
-                                            <div>
-                                                <label className="text-[9px] font-black uppercase text-zinc-400 ml-1 mb-1 block">Company</label>
-                                                <select required value={formData.organizationId} onChange={(e) => {
-                                                    setFormData({ ...formData, organizationId: e.target.value, warehouseIds: [] });
-                                                    fetchWarehouses(e.target.value);
-                                                }} className="w-full px-3 py-2 border border-zinc-200 rounded-lg font-bold text-xs uppercase outline-none shadow-sm">
-                                                    <option value="">Select Company</option>
-                                                    {organizations.map(org => <option key={org._id} value={org._id}>{org.name}</option>)}
-                                                </select>
-                                            </div>
+                                            {isAdmin && (
+                                                <div>
+                                                    <label className="text-[9px] font-black uppercase text-zinc-400 ml-1 mb-1 block">Company</label>
+                                                    <select required value={formData.organizationId} onChange={(e) => {
+                                                        setFormData({ ...formData, organizationId: e.target.value, warehouseIds: [] });
+                                                        fetchWarehouses(e.target.value);
+                                                    }} className="w-full px-3 py-2 border border-zinc-200 rounded-lg font-bold text-xs uppercase outline-none shadow-sm">
+                                                        <option value="">Select Company</option>
+                                                        {organizations.map(org => <option key={org._id} value={org._id}>{org.name}</option>)}
+                                                    </select>
+                                                </div>
+                                            )}
+
+                                            {isLeadAuditor && session?.user?.organization && (
+                                                <div>
+                                                    <label className="text-[9px] font-black uppercase text-zinc-400 ml-1 mb-1 block">Company</label>
+                                                    <div className="w-full px-3 py-2 border border-zinc-100 bg-zinc-50 rounded-lg font-bold text-xs uppercase text-zinc-500">
+                                                        {organizations.find(o => o._id === session.user.organization)?.name || 'Your Assigned Company'}
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {formData.organizationId && (
                                                 <div>

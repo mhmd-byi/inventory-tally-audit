@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     try {
         const session = await auth();
 
-        if (!session || session.user?.role !== 'admin') {
+        if (!session || !['admin', 'lead_auditor'].includes(session.user?.role || '')) {
             const bodyClone = await request.clone().json().catch(() => ({}));
             if (bodyClone.secretKey !== process.env.NEXTAUTH_SECRET) {
                 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -16,6 +16,16 @@ export async function POST(request: Request) {
 
         const body = await request.json();
         const { email, name, password, role, organizationId, organizationIds, warehouseId, warehouseIds } = body;
+
+        // Lead Auditor restrictions
+        if (session?.user?.role === 'lead_auditor') {
+            if (role !== 'auditor') {
+                return NextResponse.json({ error: 'Lead Auditors can only create Auditor accounts' }, { status: 403 });
+            }
+            if (organizationId !== session.user.organization) {
+                return NextResponse.json({ error: 'You can only create users for your own organization' }, { status: 403 });
+            }
+        }
 
         await dbConnect();
 

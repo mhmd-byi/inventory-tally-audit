@@ -251,7 +251,7 @@ export default function CompaniesPage() {
             {/* Create/Edit Company Modal */}
             {showCreateModal && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl">
+                    <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                         <h3 className="text-xl font-bold mb-6 border-b border-zinc-100 pb-4 text-black">
                             {editingOrg ? 'Edit Company' : 'Add New Company'}
                         </h3>

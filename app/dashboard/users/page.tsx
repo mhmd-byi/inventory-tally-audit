@@ -320,7 +320,7 @@ export default function UsersPage() {
 
             {showCreateModal && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-2xl overflow-hidden">
+                    <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
                         <div className="flex justify-between items-center mb-10 border-b border-zinc-100 pb-6">
                             <div>
                                 <h3 className="text-xl font-bold text-black">User Setup</h3>

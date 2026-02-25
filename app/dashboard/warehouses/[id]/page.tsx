@@ -50,6 +50,7 @@ interface WarehouseDetails {
         _id: string;
         name: string;
     };
+    auditInitiatedAt?: string;
 }
 
 export default function WarehouseAuditPage() {
@@ -196,9 +197,12 @@ export default function WarehouseAuditPage() {
             // Initialize inputs
             const initialInputs: any = {};
             invData.forEach(item => {
+                const isCurrentAudit = whData?.auditInitiatedAt && item.lastAuditDate &&
+                    new Date(item.lastAuditDate) >= new Date(whData.auditInitiatedAt);
+
                 initialInputs[item.product._id] = {
                     systemVal: item.quantity.toString(),
-                    auditVal: item.lastAuditValue !== null ? item.lastAuditValue.toString() : '',
+                    auditVal: isCurrentAudit ? (item.lastAuditValue !== null ? item.lastAuditValue.toString() : '0') : '0',
                     bookStockVal: item.bookStock !== undefined ? item.bookStock.toString() : (item.product.bookStock || 0).toString(),
                     bookStockValue: item.bookStockValue !== undefined ? item.bookStockValue.toString() : (item.product.bookStockValue || 0).toString()
                 };
@@ -651,7 +655,7 @@ export default function WarehouseAuditPage() {
                                                 <button
                                                     onClick={() => handleSave(item.product._id, 'audit')}
                                                     className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
-                                                    disabled={saveStatus[item.product._id] === 'saving' || inputs[item.product._id]?.auditVal === '' || warehouse?.auditStatus !== 'in_progress'}
+                                                    disabled={saveStatus[item.product._id] === 'saving' || warehouse?.auditStatus !== 'in_progress'}
                                                 >
                                                     <CheckCircle2 className="w-4 h-4" />
                                                 </button>

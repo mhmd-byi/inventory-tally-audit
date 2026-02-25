@@ -13,7 +13,10 @@ import {
     ClipboardList,
     ClipboardCheck,
     Edit2,
-    Trash2
+    Trash2,
+    Upload,
+    FileSpreadsheet,
+    Loader2
 } from 'lucide-react';
 
 interface Organization {
@@ -33,6 +36,7 @@ interface Warehouse {
     name: string;
     code: string;
     location?: string;
+    address?: string;
     status: string;
 }
 
@@ -53,12 +57,14 @@ export default function CompaniesPage() {
     const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
 
     const [formData, setFormData] = useState({ name: '', code: '', email: '', phone: '', address: '' });
-    const [whFormData, setWhFormData] = useState({ name: '', code: '', location: '' });
+    const [whFormData, setWhFormData] = useState({ name: '', code: '', location: '', address: '' });
 
     const [error, setError] = useState('');
     const [whError, setWhError] = useState('');
     const [success, setSuccess] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [bulkUploading, setBulkUploading] = useState(false);
+    const [bulkSummary, setBulkSummary] = useState<any>(null);
 
     const isAdmin = session?.user?.role === 'admin';
     const isStoreManager = session?.user?.role === 'store_manager';
@@ -134,7 +140,7 @@ export default function CompaniesPage() {
                 body: JSON.stringify({ ...whFormData, organization: selectedOrg._id }),
             });
             if (res.ok) {
-                setWhFormData({ name: '', code: '', location: '' });
+                setWhFormData({ name: '', code: '', location: '', address: '' });
                 setEditingWarehouse(null);
                 fetchWarehouses(selectedOrg._id);
             }
@@ -155,6 +161,39 @@ export default function CompaniesPage() {
             }
         } catch (err) {
             setError('Failed to delete company');
+        }
+    };
+
+    const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedOrg) return;
+
+        setBulkUploading(true);
+        setBulkSummary(null);
+        setWhError('');
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('organizationId', selectedOrg._id);
+
+        try {
+            const res = await fetch('/api/warehouses/bulk', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                setBulkSummary(data.summary);
+                fetchWarehouses(selectedOrg._id);
+            } else {
+                setWhError(data.error || 'Bulk upload failed');
+            }
+        } catch (err) {
+            setWhError('Failed to upload file');
+        } finally {
+            setBulkUploading(false);
+            if (e.target) e.target.value = '';
         }
     };
 
@@ -274,7 +313,7 @@ export default function CompaniesPage() {
             {/* Warehouse Management Modal */}
             {showWarehouseModal && selectedOrg && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+                    <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
                         <div className="p-8 border-b border-zinc-100 flex justify-between items-center">
                             <div>
                                 <h3 className="text-xl font-bold text-black">{selectedOrg.name} / Warehouse Network</h3>
@@ -282,8 +321,8 @@ export default function CompaniesPage() {
                             </div>
                             <button onClick={() => setShowWarehouseModal(false)} className="text-zinc-400 hover:text-black transition-all p-2"><X className="w-6 h-6" /></button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
-                            <div className="space-y-6">
+                        <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
+                            <div className="lg:col-span-1 space-y-6">
                                 <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center"><WarehouseIcon className="w-4 h-4 mr-3 text-black" /> Registered Branches</h4>
                                 {whLoading ? <div className="p-10 text-center font-medium text-zinc-400">Syncing directory...</div> : (
                                     <div className="space-y-3">
@@ -291,8 +330,15 @@ export default function CompaniesPage() {
                                             <div key={wh._id} className="p-5 border border-zinc-100 bg-zinc-50/10 rounded-2xl flex justify-between items-center group hover:border-black transition-colors">
                                                 <div>
                                                     <p className="font-bold text-sm">{wh.name}</p>
-                                                    <div className="flex items-center text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-1">
-                                                        <MapPin className="w-3 h-3 mr-1" /> {wh.location || 'Location Not Set'}
+                                                    <div className="flex flex-col text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-1 gap-0.5">
+                                                        <div className="flex items-center">
+                                                            <MapPin className="w-3 h-3 mr-1" /> {wh.location || 'Location Not Set'}
+                                                        </div>
+                                                        {wh.address && (
+                                                            <div className="flex items-center text-[9px] lowercase first-letter:uppercase">
+                                                                <Building2 className="w-2.5 h-2.5 mr-1" /> {wh.address}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
@@ -315,7 +361,7 @@ export default function CompaniesPage() {
                                                     {isAdmin && (
                                                         <>
                                                             <button
-                                                                onClick={() => { setEditingWarehouse(wh); setWhFormData({ name: wh.name, code: wh.code, location: wh.location || '' }); }}
+                                                                onClick={() => { setEditingWarehouse(wh); setWhFormData({ name: wh.name, code: wh.code, location: wh.location || '', address: wh.address || '' }); }}
                                                                 className="p-2.5 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-600 hover:text-black"
                                                                 title="Edit warehouse"
                                                             >
@@ -337,39 +383,103 @@ export default function CompaniesPage() {
                                     </div>
                                 )}
                             </div>
-                            {(isAdmin || isStoreManager) && (
-                                <div className="p-8 border border-zinc-200 bg-zinc-50/30 rounded-3xl self-start sticky top-0">
-                                    <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500">
-                                        <Plus className="w-4 h-4 mr-3 text-black" />
-                                        {editingWarehouse ? 'Edit Warehouse' : 'Add Operational Node'}
-                                    </h4>
-                                    <form onSubmit={handleCreateWarehouse} className="space-y-4">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Branch Name</label>
-                                            <input type="text" placeholder="e.g. Main Distribution Center" required value={whFormData.name} onChange={e => setWhFormData({ ...whFormData, name: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Unique Node Code</label>
-                                            <input type="text" placeholder="e.g. WH-001" required value={whFormData.code} onChange={e => setWhFormData({ ...whFormData, code: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" disabled={!!editingWarehouse} />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">City / Region</label>
-                                            <input type="text" placeholder="e.g. Karachi South" required value={whFormData.location} onChange={e => setWhFormData({ ...whFormData, location: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
-                                        </div>
-                                        {editingWarehouse && (
-                                            <button
-                                                type="button"
-                                                onClick={() => { setEditingWarehouse(null); setWhFormData({ name: '', code: '', location: '' }); }}
-                                                className="w-full py-3 border border-zinc-200 text-black font-bold text-sm rounded-xl hover:bg-zinc-100 transition-all"
-                                            >
-                                                Cancel Edit
-                                            </button>
-                                        )}
-                                        <button type="submit" disabled={submitting} className="w-full py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all shadow-md disabled:opacity-50">
-                                            {editingWarehouse ? 'Update Warehouse' : 'Initialize Warehouse'}
+
+                            <div className="lg:col-span-1 p-8 border border-zinc-200 bg-zinc-50/10 rounded-3xl self-start">
+                                <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500">
+                                    <Plus className="w-4 h-4 mr-3 text-black" />
+                                    {editingWarehouse ? 'Edit Warehouse' : 'Add Operational Node'}
+                                </h4>
+                                <form onSubmit={handleCreateWarehouse} className="space-y-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Branch Name</label>
+                                        <input type="text" placeholder="e.g. Main Distribution Center" required value={whFormData.name} onChange={e => setWhFormData({ ...whFormData, name: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Unique Node Code</label>
+                                        <input type="text" placeholder="e.g. WH-001" required value={whFormData.code} onChange={e => setWhFormData({ ...whFormData, code: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" disabled={!!editingWarehouse} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">City / Region</label>
+                                        <input type="text" placeholder="e.g. Karachi South" required value={whFormData.location} onChange={e => setWhFormData({ ...whFormData, location: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Full Address</label>
+                                        <input type="text" placeholder="e.g. Plot 123, Sector 5..." value={whFormData.address} onChange={e => setWhFormData({ ...whFormData, address: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm" />
+                                    </div>
+                                    {editingWarehouse && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setEditingWarehouse(null); setWhFormData({ name: '', code: '', location: '', address: '' }); }}
+                                            className="w-full py-3 border border-zinc-200 text-black font-bold text-sm rounded-xl hover:bg-zinc-100 transition-all"
+                                        >
+                                            Cancel Edit
                                         </button>
-                                    </form>
-                                    {whError && <p className="mt-4 text-xs font-bold text-red-500 text-center uppercase tracking-widest">{whError}</p>}
+                                    )}
+                                    <button type="submit" disabled={submitting} className="w-full py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all shadow-md disabled:opacity-50">
+                                        {editingWarehouse ? 'Update Warehouse' : 'Initialize Warehouse'}
+                                    </button>
+                                </form>
+                                {whError && !bulkUploading && <p className="mt-4 text-xs font-bold text-red-500 text-center uppercase tracking-widest">{whError}</p>}
+                            </div>
+
+                            {isAdmin && (
+                                <div className="lg:col-span-1 p-8 border border-zinc-200 bg-white rounded-3xl self-start">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500">
+                                        <FileSpreadsheet className="w-4 h-4 mr-3 text-black" /> Bulk Import Nodes
+                                    </h4>
+                                    <div className="p-6 border border-dashed border-zinc-200 bg-zinc-50/50 rounded-2xl text-center">
+                                        <input
+                                            type="file"
+                                            id="bulk-upload-wh"
+                                            className="hidden"
+                                            accept=".xlsx, .xls, .csv"
+                                            onChange={handleBulkUpload}
+                                            disabled={bulkUploading}
+                                        />
+                                        <label
+                                            htmlFor="bulk-upload-wh"
+                                            className={`w-full py-8 border-2 border-white bg-white rounded-xl flex flex-col items-center justify-center font-bold text-xs cursor-pointer hover:border-black transition-all ${bulkUploading ? 'opacity-50 cursor-wait' : ''}`}
+                                        >
+                                            <Upload className={`w-6 h-6 mb-2 ${bulkUploading ? 'animate-bounce text-zinc-300' : 'text-zinc-200'}`} />
+                                            {bulkUploading ? 'Processing...' : 'Upload Data Sheet'}
+                                        </label>
+
+                                        <div className="mt-4">
+                                            <a
+                                                href="/templates/warehouse_template.csv"
+                                                download
+                                                className="text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-black transition-colors flex items-center justify-center"
+                                            >
+                                                <FileSpreadsheet className="w-3 h-3 mr-1.5" />
+                                                Sample Template
+                                            </a>
+                                        </div>
+
+                                        {bulkSummary && (
+                                            <div className="mt-6 p-4 bg-white rounded-xl border border-zinc-100 shadow-sm text-left">
+                                                <h5 className="text-[9px] font-black uppercase tracking-widest text-black mb-3">Result Summary</h5>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="p-2 bg-green-50 rounded-xl">
+                                                        <p className="text-[8px] font-bold text-green-600 uppercase">Success</p>
+                                                        <p className="text-lg font-bold text-green-700">{bulkSummary.success}</p>
+                                                    </div>
+                                                    <div className="p-2 bg-zinc-50 rounded-xl">
+                                                        <p className="text-[8px] font-bold text-zinc-400 uppercase">Skipped</p>
+                                                        <p className="text-lg font-bold text-zinc-500">{bulkSummary.skipped}</p>
+                                                    </div>
+                                                </div>
+                                                {bulkSummary.errors && bulkSummary.errors.length > 0 && (
+                                                    <div className="mt-3 max-h-24 overflow-y-auto custom-scrollbar">
+                                                        {bulkSummary.errors.slice(0, 3).map((err: string, i: number) => (
+                                                            <p key={i} className="text-[8px] text-red-500 font-bold uppercase truncate">{err}</p>
+                                                        ))}
+                                                        {bulkSummary.errors.length > 3 && <p className="text-[8px] text-zinc-400 font-bold uppercase mt-1">+{bulkSummary.errors.length - 3} more errors</p>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {whError && bulkUploading && <p className="mt-4 text-xs font-bold text-red-500 text-center uppercase tracking-widest">{whError}</p>}
+                                    </div>
                                 </div>
                             )}
                         </div>

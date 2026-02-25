@@ -1,17 +1,34 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import { auth } from '@/lib/auth';
+import Warehouse from '@/models/Warehouse';
 
-const { ChecklistTemplate, ChecklistResponse } = require('@/models/Checklist');
+const { ChecklistTemplate, ChecklistResponse, QuestionBank } = require('@/models/Checklist');
 
-// Get checklist template
-export async function GET() {
+// Get checklist template or warehouse specific questions
+export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+        const { searchParams } = new URL(request.url);
+        const warehouseId = searchParams.get('warehouseId');
+
         await dbConnect();
 
+        if (warehouseId) {
+            const warehouse = await Warehouse.findById(warehouseId);
+            if (warehouse && warehouse.checklistQuestions && warehouse.checklistQuestions.length > 0) {
+                return NextResponse.json({
+                    _id: `wh-${warehouseId}`,
+                    name: `${warehouse.name} Checklist`,
+                    items: warehouse.checklistQuestions
+                });
+            }
+            return NextResponse.json({ error: 'Checklist not configured for this warehouse. Please contact your administrator to set up the checklist for this node.' }, { status: 404 });
+        }
+
+        // Default fallback to active template
         const template = await ChecklistTemplate.findOne({ isActive: true });
 
         if (!template) {

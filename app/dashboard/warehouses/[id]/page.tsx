@@ -317,7 +317,7 @@ export default function WarehouseAuditPage() {
         try {
             setChecklistStatus('loading');
             // Fetch template
-            const templateRes = await fetch('/api/checklists');
+            const templateRes = await fetch(`/api/checklists?warehouseId=${warehouse._id}`);
             if (templateRes.ok) {
                 const template = await templateRes.json();
                 setChecklistTemplate(template);
@@ -345,6 +345,10 @@ export default function WarehouseAuditPage() {
                     });
                 }
                 setChecklistResponses(initialResponses);
+            } else {
+                const data = await templateRes.json();
+                alert(data.error || 'Checklist not configured for this warehouse.');
+                setShowChecklistModal(false);
             }
         } catch (err) {
             console.error('Error fetching checklist:', err);

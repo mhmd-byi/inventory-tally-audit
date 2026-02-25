@@ -71,7 +71,28 @@ const checklistTemplateSchema = new mongoose.Schema({
     },
 });
 
+const QuestionBankSchema = new mongoose.Schema({
+    category: {
+        type: String,
+        required: true,
+    },
+    question: {
+        type: String,
+        required: true,
+    },
+    responseType: {
+        type: String,
+        enum: ['yes_no', 'text', 'number', 'na'],
+        default: 'yes_no',
+    },
+    isActive: {
+        type: Boolean,
+        default: true,
+    },
+}, { timestamps: true });
+
 const ChecklistTemplate = mongoose.models.ChecklistTemplate || mongoose.model('ChecklistTemplate', checklistTemplateSchema);
 const ChecklistResponse = mongoose.models.ChecklistResponse || mongoose.model('ChecklistResponse', checklistResponseSchema);
+const QuestionBank = mongoose.models.QuestionBank || mongoose.model('QuestionBank', QuestionBankSchema);
 
-module.exports = { ChecklistTemplate, ChecklistResponse };
+module.exports = { ChecklistTemplate, ChecklistResponse, QuestionBank, checklistItemSchema };

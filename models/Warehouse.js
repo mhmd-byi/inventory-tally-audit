@@ -48,6 +48,14 @@ const warehouseSchema = new mongoose.Schema(
         auditInitiatedAt: {
             type: Date,
         },
+        checklistQuestions: [
+            {
+                category: String,
+                question: String,
+                responseType: String,
+                order: Number
+            }
+        ],
     },
     {
         timestamps: true,

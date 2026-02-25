@@ -12,6 +12,10 @@ import {
     MapPin,
     ClipboardList,
     ClipboardCheck,
+    Search,
+    Settings,
+    Library,
+    CheckSquare,
     Edit2,
     Trash2,
     Upload,
@@ -38,6 +42,7 @@ interface Warehouse {
     location?: string;
     address?: string;
     status: string;
+    checklistQuestions?: { category: string; question: string; responseType: string; order: number }[];
 }
 
 export default function CompaniesPage() {
@@ -65,6 +70,16 @@ export default function CompaniesPage() {
     const [submitting, setSubmitting] = useState(false);
     const [bulkUploading, setBulkUploading] = useState(false);
     const [bulkSummary, setBulkSummary] = useState<any>(null);
+
+    // Checklist Bank and Assignment States
+    const [showBankModal, setShowBankModal] = useState(false);
+    const [bankQuestions, setBankQuestions] = useState<any[]>([]);
+    const [bankLoading, setBankLoading] = useState(false);
+    const [newBankQuestion, setNewBankQuestion] = useState({ category: '', question: '', responseType: 'yes_no' });
+
+    const [showWhChecklistModal, setShowWhChecklistModal] = useState(false);
+    const [whChecklistTarget, setWhChecklistTarget] = useState<Warehouse | null>(null);
+    const [selectedBankQuestions, setSelectedBankQuestions] = useState<string[]>([]);
 
     const isAdmin = session?.user?.role === 'admin';
     const isStoreManager = session?.user?.role === 'store_manager';
@@ -140,11 +155,20 @@ export default function CompaniesPage() {
                 body: JSON.stringify({ ...whFormData, organization: selectedOrg._id }),
             });
             if (res.ok) {
+                const data = await res.json();
                 setWhFormData({ name: '', code: '', location: '', address: '' });
                 setEditingWarehouse(null);
                 fetchWarehouses(selectedOrg._id);
-            }
-            else { setWhError((await res.json()).error); }
+
+                // Proactively prompt to configure checklist for NEW warehouses
+                if (method === 'POST' && data.warehouse) {
+                    setTimeout(() => {
+                        if (confirm('Warehouse created successfully! Would you like to configure its specific audit checklist from the Question Bank now?')) {
+                            handleOpenWhChecklist(data.warehouse);
+                        }
+                    }, 500);
+                }
+            } else { setWhError((await res.json()).error); }
         } catch (err) { } finally { setSubmitting(false); }
     };
 
@@ -212,6 +236,108 @@ export default function CompaniesPage() {
     };
 
 
+    const fetchBankQuestions = async () => {
+        try {
+            setBankLoading(true);
+            const res = await fetch('/api/checklist-bank');
+            if (res.ok) setBankQuestions(await res.json());
+        } finally {
+            setBankLoading(false);
+        }
+    };
+
+    const handleAddToBank = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const res = await fetch('/api/checklist-bank', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newBankQuestion),
+            });
+            if (res.ok) {
+                setNewBankQuestion({ category: '', question: '', responseType: 'yes_no' });
+                fetchBankQuestions();
+            }
+        } catch (err) { }
+    };
+
+    const handleDeleteFromBank = async (id: string) => {
+        if (!confirm('Are you sure?')) return;
+        try {
+            const res = await fetch(`/api/checklist-bank?id=${id}`, { method: 'DELETE' });
+            if (res.ok) fetchBankQuestions();
+        } catch (err) { }
+    };
+
+    const handleOpenWhChecklist = async (wh: Warehouse) => {
+        setWhChecklistTarget(wh);
+        await fetchBankQuestions();
+
+        // Find IDs of bank questions that match the warehouse's current questions
+        const currentWhQuestions = wh.checklistQuestions || [];
+        const matchingIds: string[] = [];
+
+        // We need to wait for bankQuestions to be updated, but since fetchBankQuestions is async and updates state
+        // it might be better to fetch and handle the data directly.
+        const res = await fetch('/api/checklist-bank');
+        if (res.ok) {
+            const currentBank = await res.json();
+            setBankQuestions(currentBank);
+            currentWhQuestions.forEach(whQ => {
+                const match = currentBank.find((bq: any) => bq.question === whQ.question && bq.category === whQ.category);
+                if (match) matchingIds.push(match._id);
+            });
+            setSelectedBankQuestions(matchingIds);
+        }
+
+        setShowWhChecklistModal(true);
+    };
+
+    const handleSaveWhChecklist = async () => {
+        if (!whChecklistTarget) return;
+        const questionsToAssign = bankQuestions
+            .filter(q => selectedBankQuestions.includes(q._id))
+            .map((q, index) => ({
+                category: q.category,
+                question: q.question,
+                responseType: q.responseType,
+                order: index
+            }));
+
+        try {
+            const res = await fetch(`/api/warehouses/${whChecklistTarget._id}/checklist`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ questions: questionsToAssign }),
+            });
+            if (res.ok) {
+                setShowWhChecklistModal(false);
+                fetchWarehouses(selectedOrg!._id);
+            }
+        } catch (err) { }
+    };
+
+
+    const handleImportFromTemplate = async () => {
+        if (!confirm('This will import all questions from the active checklist template into the Question Bank. Continue?')) return;
+        try {
+            setBankLoading(true);
+            const res = await fetch('/api/checklist-bank', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'import_from_template' }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                alert(data.message);
+                fetchBankQuestions();
+            }
+        } finally {
+            setBankLoading(false);
+        }
+    };
+
+
     if (status === 'loading') return null;
 
     return (
@@ -226,14 +352,24 @@ export default function CompaniesPage() {
                             Manage organizations, catalog registry and warehouse networks
                         </p>
                     </div>
-                    {isAdmin && (
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="bg-black text-white px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all flex items-center shadow-sm"
-                        >
-                            <Plus className="w-4 h-4 mr-2" /> Add Company
-                        </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {isLeadAuditor && (
+                            <button
+                                onClick={() => { fetchBankQuestions(); setShowBankModal(true); }}
+                                className="border border-zinc-200 text-zinc-600 px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-50 transition-all flex items-center shadow-sm"
+                            >
+                                <Library className="w-4 h-4 mr-2" /> Question Bank
+                            </button>
+                        )}
+                        {isAdmin && (
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="bg-black text-white px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all flex items-center shadow-sm"
+                            >
+                                <Plus className="w-4 h-4 mr-2" /> Add Company
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
@@ -350,13 +486,22 @@ export default function CompaniesPage() {
                                                         <ClipboardList className="w-4 h-4" />
                                                     </button>
                                                     {isLeadAuditor && (
-                                                        <button
-                                                            onClick={() => router.push(`/dashboard/warehouses/${wh._id}`)}
-                                                            className="p-2.5 bg-zinc-50 text-emerald-600 border border-zinc-200 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm group-hover:shadow-md"
-                                                            title="Verification Checklist"
-                                                        >
-                                                            <ClipboardCheck className="w-4 h-4" />
-                                                        </button>
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleOpenWhChecklist(wh)}
+                                                                className="p-2.5 bg-zinc-50 text-blue-600 border border-zinc-200 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm group-hover:shadow-md"
+                                                                title="Configure Checklist"
+                                                            >
+                                                                <CheckSquare className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => router.push(`/dashboard/warehouses/${wh._id}`)}
+                                                                className="p-2.5 bg-zinc-50 text-emerald-600 border border-zinc-200 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm group-hover:shadow-md"
+                                                                title="Verification Checklist"
+                                                            >
+                                                                <ClipboardCheck className="w-4 h-4" />
+                                                            </button>
+                                                        </>
                                                     )}
                                                     {isAdmin && (
                                                         <>
@@ -487,6 +632,117 @@ export default function CompaniesPage() {
                 </div>
             )}
 
+            {/* Question Bank Modal */}
+            {showBankModal && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                    <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+                        <div className="p-8 border-b border-zinc-100 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-xl font-bold text-black flex items-center">
+                                    <Library className="w-5 h-5 mr-3" /> Question Bank
+                                </h3>
+                                <p className="text-zinc-500 font-medium text-xs mt-1">Manage global verification questions</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                {bankQuestions.length === 0 && (
+                                    <button
+                                        onClick={handleImportFromTemplate}
+                                        disabled={bankLoading}
+                                        className="text-[10px] font-black uppercase tracking-widest text-emerald-600 border border-emerald-100 bg-emerald-50 px-3 py-2 rounded-lg hover:bg-emerald-100 transition-all flex items-center"
+                                    >
+                                        <Plus className="w-3 h-3 mr-1.5" /> Import Existing Template
+                                    </button>
+                                )}
+                                <button onClick={() => setShowBankModal(false)} className="text-zinc-400 hover:text-black transition-all p-2 rounded-full hover:bg-zinc-100">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="p-8 border-b border-zinc-100 bg-zinc-50/50">
+                            <form onSubmit={handleAddToBank} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="md:col-span-1">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Category</label>
+                                    <input type="text" placeholder="e.g. Safety" required value={newBankQuestion.category} onChange={e => setNewBankQuestion({ ...newBankQuestion, category: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm" />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Question</label>
+                                    <input type="text" placeholder="Is the area clean?" required value={newBankQuestion.question} onChange={e => setNewBankQuestion({ ...newBankQuestion, question: e.target.value })} className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm" />
+                                </div>
+                                <div className="md:col-span-1 flex items-end">
+                                    <button type="submit" className="w-full py-3.5 bg-black text-white font-bold text-xs rounded-xl hover:bg-zinc-800 transition-all">Add</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                            {bankQuestions.map((q) => (
+                                <div key={q._id} className="p-4 border border-zinc-100 rounded-2xl flex justify-between items-center group hover:bg-zinc-50 transition-colors">
+                                    <div>
+                                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-zinc-100 rounded text-zinc-500">{q.category}</span>
+                                        <p className="text-sm font-bold mt-1">{q.question}</p>
+                                    </div>
+                                    <button onClick={() => handleDeleteFromBank(q._id)} className="p-2 text-zinc-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {bankQuestions.length === 0 && <div className="py-20 text-center text-zinc-300 font-bold text-xs uppercase">Bank is empty</div>}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Warehouse Checklist Configuration Modal */}
+            {showWhChecklistModal && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                    <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+                        <div className="p-8 border-b border-zinc-100 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-xl font-bold text-black flex items-center">
+                                    <CheckSquare className="w-5 h-5 mr-3" /> Checklist for {whChecklistTarget?.name}
+                                </h3>
+                                <p className="text-zinc-500 font-medium text-xs mt-1">Select questions from the bank for this warehouse</p>
+                            </div>
+                            <button onClick={() => setShowWhChecklistModal(false)} className="text-zinc-400 hover:text-black transition-all p-2 rounded-full hover:bg-zinc-100">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-8">
+                            {/* Group questions by category */}
+                            {Array.from(new Set(bankQuestions.map(q => q.category))).map(cat => (
+                                <div key={cat} className="mb-8">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4 ml-1">{cat}</h4>
+                                    <div className="space-y-3">
+                                        {bankQuestions.filter(q => q.category === cat).map(q => (
+                                            <label key={q._id} className={`flex items-center p-4 rounded-2xl border-2 transition-all cursor-pointer ${selectedBankQuestions.includes(q._id) ? 'border-black bg-zinc-50' : 'border-zinc-100 hover:border-zinc-200'}`}>
+                                                <input
+                                                    type="checkbox"
+                                                    className="w-5 h-5 accent-black mr-4"
+                                                    checked={selectedBankQuestions.includes(q._id)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) setSelectedBankQuestions([...selectedBankQuestions, q._id]);
+                                                        else setSelectedBankQuestions(selectedBankQuestions.filter(id => id !== q._id));
+                                                    }}
+                                                />
+                                                <span className="text-sm font-bold">{q.question}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                            {bankQuestions.length === 0 && (
+                                <div className="text-center py-10">
+                                    <p className="text-zinc-400 font-bold text-xs uppercase">No questions available in bank</p>
+                                    <button onClick={() => { setShowWhChecklistModal(false); setShowBankModal(true); }} className="mt-4 text-black font-bold text-xs underline">Go to Question Bank</button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-8 border-t border-zinc-100 flex gap-4 bg-zinc-50/50">
+                            <button onClick={() => setShowWhChecklistModal(false)} className="flex-1 py-4 border border-zinc-200 text-black font-bold text-sm rounded-xl hover:bg-zinc-100 transition-all">Cancel</button>
+                            <button onClick={handleSaveWhChecklist} className="flex-1 py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all shadow-md">Update Warehouse Checklist</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

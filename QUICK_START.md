@@ -6,7 +6,7 @@
 ✅ **User Authentication**: NextAuth with secure password hashing  
 ✅ **Login Page**: Beautiful glassmorphic design at `/login`  
 ✅ **Dashboard Page**: Modern, responsive dashboard at `/dashboard`  
-✅ **User Model**: With roles (admin, organization_admin, user)  
+✅ **User Model**: With roles (admin, organization_admin, user)
 
 ## Next Steps
 
@@ -73,16 +73,19 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/users/create" -Method POST -Bo
 ## Troubleshooting
 
 ### Can't Connect to Database
+
 - Check your MongoDB URI in `.env.local`
 - Ensure MongoDB is running
 - If using MongoDB Atlas, whitelist your IP
 
 ### Login Not Working
+
 - Make sure admin user was created
 - Check browser console for errors
 - Verify NEXTAUTH_SECRET is set in `.env.local`
 
 ### Server Won't Start
+
 - Make sure port 3000 is free
 - Run `npm install` again if needed
 - Check for TypeScript errors

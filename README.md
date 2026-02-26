@@ -1,6 +1,6 @@
 # Inventory Tally Audit Management System
 
-A modern inventory management and audit tracking  system built with Next.js, MongoDB, and NextAuth.
+A modern inventory management and audit tracking system built with Next.js, MongoDB, and NextAuth.
 
 ## Features
 
@@ -28,13 +28,15 @@ A modern inventory management and audit tracking  system built with Next.js, Mon
 ### Installation
 
 1. **Clone and Install**
+
    ```bash
    npm install
    ```
 
 2. **Environment Setup**
-   
+
    The `.env.local` file is already configured with:
+
    ```env
    MONGODB_URI=your-mongodb-connection-string
    JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
@@ -43,26 +45,28 @@ A modern inventory management and audit tracking  system built with Next.js, Mon
    ```
 
 3. **Create Admin User**
-   
+
    Run the seed script to create the initial admin user:
+
    ```bash
    npm run seed-admin
    ```
-   
+
    This will create an admin user with:
    - **Email**: `admin@inventory.com`
    - **Password**: `Admin@123`
    - **Role**: `admin`
 
 4. **Start Development Server**
+
    ```bash
    npm run dev
    ```
 
 5. **Open Application**
-   
+
    Navigate to [http://localhost:3000](http://localhost:3000)
-   
+
    You'll be redirected to the login page. Use the admin credentials above to sign in.
 
 ## Project Structure
@@ -114,6 +118,7 @@ inventory-tally-audit/
 ## Security Notes
 
 ⚠️ **Important**: Before deploying to production:
+
 1. Change the `JWT_SECRET` and `NEXTAUTH_SECRET` in `.env.local`
 2. Use strong, unique passwords for all users
 3. Enable HTTPS in production
@@ -122,18 +127,20 @@ inventory-tally-audit/
 ## Troubleshooting
 
 ### Database Connection Issues
+
 - Verify your `MONGODB_URI` is correct
 - Check if your IP is whitelisted (MongoDB Atlas)
 - Ensure MongoDB service is running (local setup)
 
 ### Login Issues
+
 - Ensure admin user was created successfully
 - Check browser console for errors
 - Verify NextAuth configuration
 
 ## License
 
-This project is  proprietary software.
+This project is proprietary software.
 
 ## Support
 

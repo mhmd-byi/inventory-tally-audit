@@ -1,14 +1,14 @@
-'use client';
+'use client'
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function WarehousesRedirect() {
-    const router = useRouter();
+  const router = useRouter()
 
-    useEffect(() => {
-        router.replace('/dashboard/organizations');
-    }, [router]);
+  useEffect(() => {
+    router.replace('/dashboard/organizations')
+  }, [router])
 
-    return null;
+  return null
 }

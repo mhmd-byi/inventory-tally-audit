@@ -1,14 +1,14 @@
-'use client';
+'use client'
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function Home() {
-  const router = useRouter();
+  const router = useRouter()
 
   useEffect(() => {
-    router.push('/login');
-  }, [router]);
+    router.push('/login')
+  }, [router])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-950 via-slate-900 to-gray-900">
@@ -17,5 +17,5 @@ export default function Home() {
         <p className="text-gray-300">Redirecting to login...</p>
       </div>
     </div>
-  );
+  )
 }

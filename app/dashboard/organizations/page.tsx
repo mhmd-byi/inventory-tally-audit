@@ -485,6 +485,13 @@ export default function CompaniesPage() {
                                                     >
                                                         <ClipboardList className="w-4 h-4" />
                                                     </button>
+                                                    <button
+                                                        onClick={() => router.push(`/dashboard/warehouses/${wh._id}?tab=checklist`)}
+                                                        className="p-2.5 bg-zinc-50 text-emerald-600 border border-zinc-200 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm group-hover:shadow-md"
+                                                        title="Verification Checklist"
+                                                    >
+                                                        <ClipboardCheck className="w-4 h-4" />
+                                                    </button>
                                                     {isLeadAuditor && (
                                                         <>
                                                             <button
@@ -493,13 +500,6 @@ export default function CompaniesPage() {
                                                                 title="Configure Checklist"
                                                             >
                                                                 <CheckSquare className="w-4 h-4" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => router.push(`/dashboard/warehouses/${wh._id}`)}
-                                                                className="p-2.5 bg-zinc-50 text-emerald-600 border border-zinc-200 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm group-hover:shadow-md"
-                                                                title="Verification Checklist"
-                                                            >
-                                                                <ClipboardCheck className="w-4 h-4" />
                                                             </button>
                                                         </>
                                                     )}

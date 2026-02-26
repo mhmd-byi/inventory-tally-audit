@@ -1084,9 +1084,10 @@ export default function WarehouseAuditPage() {
                                 <input
                                   type="radio"
                                   name={`response-${item._id}`}
+                                  disabled={!isLeadAuditor}
                                   checked={checklistResponses[item._id]?.response === true}
                                   onChange={() => handleChecklistResponse(item._id, 'response', true)}
-                                  className="w-4 h-4 text-emerald-600 mr-2"
+                                  className={`w-4 h-4 text-emerald-600 mr-2 ${!isLeadAuditor ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 />
                                 <span className="text-sm font-medium">Yes</span>
                               </label>
@@ -1094,9 +1095,10 @@ export default function WarehouseAuditPage() {
                                 <input
                                   type="radio"
                                   name={`response-${item._id}`}
+                                  disabled={!isLeadAuditor}
                                   checked={checklistResponses[item._id]?.response === false}
                                   onChange={() => handleChecklistResponse(item._id, 'response', false)}
-                                  className="w-4 h-4 text-red-600 mr-2"
+                                  className={`w-4 h-4 text-red-600 mr-2 ${!isLeadAuditor ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 />
                                 <span className="text-sm font-medium">No</span>
                               </label>
@@ -1104,9 +1106,10 @@ export default function WarehouseAuditPage() {
                                 <input
                                   type="radio"
                                   name={`response-${item._id}`}
+                                  disabled={!isLeadAuditor}
                                   checked={checklistResponses[item._id]?.response === 'N/A'}
                                   onChange={() => handleChecklistResponse(item._id, 'response', 'N/A')}
-                                  className="w-4 h-4 text-zinc-400 mr-2"
+                                  className={`w-4 h-4 text-zinc-400 mr-2 ${!isLeadAuditor ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 />
                                 <span className="text-sm font-medium text-zinc-500">N/A</span>
                               </label>
@@ -1116,10 +1119,13 @@ export default function WarehouseAuditPage() {
                           {item.responseType === 'text' && (
                             <textarea
                               value={checklistResponses[item._id]?.response || ''}
+                              disabled={!isLeadAuditor}
                               onChange={(e) => handleChecklistResponse(item._id, 'response', e.target.value)}
-                              className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:border-emerald-600 outline-none text-sm resize-none"
+                              className={`w-full px-4 py-3 border border-zinc-300 rounded-lg focus:border-emerald-600 outline-none text-sm resize-none ${
+                                !isLeadAuditor ? 'bg-zinc-100 cursor-not-allowed text-zinc-400' : ''
+                              }`}
                               rows={3}
-                              placeholder="Enter your notes here..."
+                              placeholder={isLeadAuditor ? 'Enter your notes here...' : 'No notes entered'}
                             />
                           )}
 
@@ -1127,9 +1133,12 @@ export default function WarehouseAuditPage() {
                             <input
                               type="number"
                               value={checklistResponses[item._id]?.response || ''}
+                              disabled={!isLeadAuditor}
                               onChange={(e) => handleChecklistResponse(item._id, 'response', Number(e.target.value))}
-                              className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:border-emerald-600 outline-none text-sm"
-                              placeholder="Enter number..."
+                              className={`w-full px-4 py-3 border border-zinc-300 rounded-lg focus:border-emerald-600 outline-none text-sm ${
+                                !isLeadAuditor ? 'bg-zinc-100 cursor-not-allowed text-zinc-400' : ''
+                              }`}
+                              placeholder={isLeadAuditor ? 'Enter number...' : '-'}
                             />
                           )}
 

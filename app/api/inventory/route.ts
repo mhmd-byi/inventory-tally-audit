@@ -118,7 +118,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await auth()
-    if (!session || !['admin', 'store_manager', 'auditor'].includes(session.user?.role || '')) {
+    if (!session || !['admin', 'lead_auditor', 'store_manager', 'auditor'].includes(session.user?.role || '')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

@@ -28,6 +28,9 @@ interface UserData {
   warehouse?: Warehouse
   warehouses?: Warehouse[]
   createdAt: string
+  isActive?: boolean
+  approvalStatus?: 'approved' | 'pending' | 'rejected'
+  approvalNote?: string
 }
 
 export default function UsersPage() {
@@ -185,7 +188,10 @@ export default function UsersPage() {
       })
 
       if (response.ok) {
-        setSuccess(`User account created for ${formData.name}`)
+        const msg = isLeadAuditor
+          ? `Account created for ${formData.name}. Awaiting admin approval before they can log in.`
+          : `User account created for ${formData.name}`
+        setSuccess(msg)
         setFormData({
           name: '',
           email: '',
@@ -220,6 +226,25 @@ export default function UsersPage() {
       else setError((await response.json()).error || 'Deletion failed')
     } catch (err) {
       setError('Error')
+    }
+  }
+
+  const handleApproval = async (userId: string, action: 'approve' | 'reject', note?: string) => {
+    try {
+      const response = await fetch(`/api/users/${userId}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, note }),
+      })
+      if (response.ok) {
+        setSuccess(action === 'approve' ? 'Account approved and activated!' : 'Account rejected.')
+        fetchUsers()
+        setTimeout(() => setSuccess(''), 3000)
+      } else {
+        setError((await response.json()).error || 'Action failed')
+      }
+    } catch (err) {
+      setError('Error processing approval')
     }
   }
 
@@ -265,6 +290,51 @@ export default function UsersPage() {
         )}
 
         <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
+          {/* Pending Approvals Panel — Admin only */}
+          {isAdmin && users.some((u) => u.approvalStatus === 'pending') && (
+            <div className="border-b border-amber-100 bg-amber-50 p-6">
+              <h3 className="text-xs font-black uppercase tracking-widest text-amber-700 mb-4 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-2" /> Pending Account Approvals
+              </h3>
+              <div className="space-y-3">
+                {users
+                  .filter((u) => u.approvalStatus === 'pending')
+                  .map((u) => (
+                    <div
+                      key={u._id}
+                      className="flex items-center justify-between bg-white border border-amber-200 rounded-xl px-5 py-4 shadow-sm"
+                    >
+                      <div>
+                        <p className="font-bold text-sm text-black">{u.name}</p>
+                        <p className="text-xs text-zinc-500">{u.email}</p>
+                        <p className="text-[10px] text-zinc-400 uppercase tracking-widest mt-1">
+                          {(typeof u.organization === 'object' ? (u.organization as any)?.name : '') || 'No company'} ·
+                          Created by Lead Auditor
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleApproval(u._id, 'approve')}
+                          className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all flex items-center shadow"
+                        >
+                          <Check className="w-3.5 h-3.5 mr-1.5" /> Approve
+                        </button>
+                        <button
+                          onClick={() => {
+                            const note = prompt('Reason for rejection (optional):')
+                            if (note !== null) handleApproval(u._id, 'reject', note)
+                          }}
+                          className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-lg hover:bg-red-100 transition-all flex items-center"
+                        >
+                          <X className="w-3.5 h-3.5 mr-1.5" /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
           <table className="w-full text-left">
             <thead>
               <tr className="bg-zinc-50 border-b border-zinc-200">
@@ -291,9 +361,21 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider border border-zinc-200 px-2 py-0.5 rounded-md bg-white">
-                      {formatRole(user.role)}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider border border-zinc-200 px-2 py-0.5 rounded-md bg-white inline-block w-fit">
+                        {formatRole(user.role)}
+                      </span>
+                      {user.approvalStatus === 'pending' && (
+                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md inline-block w-fit">
+                          ⏳ Pending Approval
+                        </span>
+                      )}
+                      {user.approvalStatus === 'rejected' && (
+                        <span className="text-[9px] font-black uppercase tracking-widest text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md inline-block w-fit">
+                          ✕ Rejected
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex flex-col gap-1.5">

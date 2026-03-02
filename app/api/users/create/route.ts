@@ -72,6 +72,12 @@ export async function POST(request: Request) {
       userData.organizations = [organizationId]
     }
 
+    // If a Lead Auditor is creating an account, mark it as pending admin approval
+    if (session?.user?.role === 'lead_auditor') {
+      userData.isActive = false
+      userData.approvalStatus = 'pending'
+    }
+
     const user = await User.create(userData)
 
     return NextResponse.json(

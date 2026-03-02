@@ -57,6 +57,25 @@ const userSchema = new mongoose.Schema(
         ref: 'Warehouse',
       },
     ],
+    // Approval workflow
+    isActive: {
+      type: Boolean,
+      default: true, // admin-created accounts are active by default
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['approved', 'pending', 'rejected'],
+      default: 'approved', // admin-created accounts are pre-approved
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
+    approvalNote: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,

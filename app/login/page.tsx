@@ -33,7 +33,15 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError('Login failing: Check your email and password')
+        if (result.error === 'ACCOUNT_PENDING_APPROVAL') {
+          setError(
+            'Your account is pending admin approval. Please wait for the administrator to activate your account.'
+          )
+        } else if (result.error === 'ACCOUNT_REJECTED') {
+          setError('Your account request has been rejected. Please contact your administrator for more information.')
+        } else {
+          setError('Login failed: Check your email and password')
+        }
         setLoading(false)
       } else if (result?.ok) {
         router.push('/dashboard')

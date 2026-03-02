@@ -33,6 +33,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null
           }
 
+          // Block login for inactive accounts
+          if ((user as any).isActive === false || (user as any).approvalStatus === 'pending') {
+            throw new Error('ACCOUNT_PENDING_APPROVAL')
+          }
+          if ((user as any).approvalStatus === 'rejected') {
+            throw new Error('ACCOUNT_REJECTED')
+          }
+
           return {
             id: user._id.toString(),
             name: user.name,
@@ -42,8 +50,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             warehouse: user.warehouse?.toString(),
             warehouses: user.warehouses?.map((w: any) => w.toString()),
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Authorize error:', error)
+          if (error.message === 'ACCOUNT_PENDING_APPROVAL' || error.message === 'ACCOUNT_REJECTED') {
+            throw error
+          }
           return null
         }
       },

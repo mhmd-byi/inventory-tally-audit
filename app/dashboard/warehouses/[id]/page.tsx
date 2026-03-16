@@ -89,6 +89,19 @@ export default function WarehouseAuditPage() {
     [productId: string]: { systemVal: string; auditVal: string; bookStockVal: string; bookStockValue: string }
   }>({})
 
+  // Add Quantity Modal
+  const [addQtyModal, setAddQtyModal] = useState<{
+    isOpen: boolean;
+    productId: string | null;
+    target: 'system' | 'audit' | null;
+    valToAdd: string;
+  }>({
+    isOpen: false,
+    productId: null,
+    target: null,
+    valToAdd: '',
+  })
+
   // Checklist states
   const [showChecklistModal, setShowChecklistModal] = useState(false)
   const [checklistTemplate, setChecklistTemplate] = useState<any>(null)
@@ -297,6 +310,28 @@ export default function WarehouseAuditPage() {
               : 'bookStockValue']: value,
       },
     }))
+  }
+
+  const handleAddQuantitySubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const { productId, target, valToAdd } = addQtyModal
+    if (!productId || !target || !valToAdd) return
+
+    setInputs((prev) => {
+      const currentVal = Number(prev[productId][target === 'system' ? 'systemVal' : 'auditVal']) || 0
+      const added = Number(valToAdd) || 0
+      const newVal = (currentVal + added).toString()
+
+      return {
+        ...prev,
+        [productId]: {
+          ...prev[productId],
+          [target === 'system' ? 'systemVal' : 'auditVal']: newVal,
+        },
+      }
+    })
+
+    setAddQtyModal({ isOpen: false, productId: null, target: null, valToAdd: '' })
   }
 
   const handleSave = async (productId: string, target: 'system' | 'audit' | 'bookStock' | 'bookStockValue') => {
@@ -750,13 +785,25 @@ export default function WarehouseAuditPage() {
                         placeholder="Qty"
                       />
                       {isStoreManager && (
-                        <button
-                          onClick={() => handleSave(item.product._id, 'system')}
-                          className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
-                          disabled={saveStatus[item.product._id] === 'saving'}
-                        >
-                          <Save className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center space-x-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAddQtyModal({ isOpen: true, productId: item.product._id, target: 'system', valToAdd: '' })
+                            }
+                            className="p-2 bg-zinc-100 text-black rounded-lg hover:bg-zinc-200 transition-colors"
+                            title="Add Quantity"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleSave(item.product._id, 'system')}
+                            className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
+                            disabled={saveStatus[item.product._id] === 'saving'}
+                          >
+                            <Save className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </td>
@@ -776,15 +823,28 @@ export default function WarehouseAuditPage() {
                         placeholder="Count"
                       />
                       {isAuditor && (
-                        <button
-                          onClick={() => handleSave(item.product._id, 'audit')}
-                          className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
-                          disabled={
-                            saveStatus[item.product._id] === 'saving' || warehouse?.auditStatus !== 'in_progress'
-                          }
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center space-x-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAddQtyModal({ isOpen: true, productId: item.product._id, target: 'audit', valToAdd: '' })
+                            }
+                            disabled={warehouse?.auditStatus !== 'in_progress'}
+                            className="p-2 bg-zinc-100 text-black rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-50"
+                            title="Add Quantity"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleSave(item.product._id, 'audit')}
+                            className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
+                            disabled={
+                              saveStatus[item.product._id] === 'saving' || warehouse?.auditStatus !== 'in_progress'
+                            }
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </td>
@@ -1198,6 +1258,57 @@ export default function WarehouseAuditPage() {
                 <p className="text-zinc-500">No checklist template found. Please contact administrator.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Quantity Modal */}
+      {addQtyModal.isOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-60 p-4 font-sans">
+          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden">
+            <div className="p-6 border-b border-zinc-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-black flex items-center">
+                <Plus className="w-5 h-5 mr-3 text-emerald-600" /> Add Quantity
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAddQtyModal({ isOpen: false, productId: null, target: null, valToAdd: '' })}
+                className="text-zinc-400 hover:text-black transition-all p-2 rounded-full hover:bg-zinc-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleAddQuantitySubmit} className="p-6">
+              <div className="mb-6">
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 ml-1">
+                  Amount to Add
+                </label>
+                <input
+                  type="number"
+                  autoFocus
+                  required
+                  value={addQtyModal.valToAdd}
+                  onChange={(e) => setAddQtyModal({ ...addQtyModal, valToAdd: e.target.value })}
+                  className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black focus:ring-2 focus:ring-black/5 outline-none font-bold text-lg text-center transition-colors shadow-sm"
+                  placeholder="e.g. 5 or -2"
+                />
+              </div>
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setAddQtyModal({ isOpen: false, productId: null, target: null, valToAdd: '' })}
+                  className="flex-1 py-3 text-zinc-600 font-bold text-sm bg-zinc-100 rounded-xl hover:bg-zinc-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 text-white font-bold text-sm bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-md"
+                >
+                  Add to Total
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

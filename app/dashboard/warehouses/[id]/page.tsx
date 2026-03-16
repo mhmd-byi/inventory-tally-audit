@@ -21,7 +21,12 @@ import {
   Download,
   Printer,
   X,
+  ChevronDown,
+  FileText,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { jsPDF } from 'jspdf'
+import 'jspdf-autotable'
 
 interface Product {
   _id: string
@@ -101,6 +106,9 @@ export default function WarehouseAuditPage() {
     target: null,
     valToAdd: '',
   })
+
+  // Report Dropdown State
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false)
 
   // Checklist states
   const [showChecklistModal, setShowChecklistModal] = useState(false)
@@ -332,6 +340,55 @@ export default function WarehouseAuditPage() {
     })
 
     setAddQtyModal({ isOpen: false, productId: null, target: null, valToAdd: '' })
+  }
+
+  const handleDownloadReport = (format: 'xlsx' | 'csv' | 'pdf') => {
+    if (!warehouse) return
+
+    const data = filteredInventory.map((item) => {
+      const input = inputs[item.product._id] || {}
+      return {
+        'Product Name': item.product.name,
+        SKU: item.product.sku,
+        Unit: item.product.unit,
+        'Book Stock (ERP)': input.bookStockVal || item.bookStock || 0,
+        'Book Stock Value': input.bookStockValue || item.bookStockValue || 0,
+        'System Quantity': input.systemVal || item.quantity || 0,
+        'Physical Count': input.auditVal || '0',
+        Variance: (Number(input.auditVal || 0) - Number(input.systemVal || item.quantity || 0)).toString(),
+      }
+    })
+
+    const fileName = `Inventory_Report_${warehouse.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`
+
+    if (format === 'xlsx' || format === 'csv') {
+      const ws = XLSX.utils.json_to_sheet(data)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Inventory')
+      XLSX.writeFile(wb, `${fileName}.${format}`)
+    } else if (format === 'pdf') {
+      const doc = new jsPDF()
+      doc.setFontSize(18)
+      doc.text(`Inventory Report: ${warehouse.name}`, 14, 20)
+      doc.setFontSize(11)
+      doc.setTextColor(100)
+      doc.text(`Organization: ${warehouse.organization.name} | Code: ${warehouse.code}`, 14, 30)
+      doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 37)
+
+      const tableColumn = Object.keys(data[0])
+      const tableRows = data.map((item) => Object.values(item))
+
+      ;(doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 45,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [0, 0, 0] },
+      })
+
+      doc.save(`${fileName}.pdf`)
+    }
+    setShowDownloadMenu(false)
   }
 
   const handleSave = async (productId: string, target: 'system' | 'audit' | 'bookStock' | 'bookStockValue') => {
@@ -614,6 +671,38 @@ export default function WarehouseAuditPage() {
               >
                 <ClipboardCheck className="w-4 h-4 mr-2" /> Verification Checklist
               </button>
+
+              <div className="relative">
+                <button
+                  onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                  className="bg-zinc-100 text-zinc-900 border border-zinc-200 px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-200 transition-all flex items-center shadow-md"
+                >
+                  <Download className="w-4 h-4 mr-2" /> Download Report <ChevronDown className="w-4 h-4 ml-2" />
+                </button>
+
+                {showDownloadMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                    <button
+                      onClick={() => handleDownloadReport('xlsx')}
+                      className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Excel (.xlsx)
+                    </button>
+                    <button
+                      onClick={() => handleDownloadReport('csv')}
+                      className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors"
+                    >
+                      <FileText className="w-4 h-4 text-blue-600" /> CSV (.csv)
+                    </button>
+                    <button
+                      onClick={() => handleDownloadReport('pdf')}
+                      className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors border-t border-zinc-100"
+                    >
+                      <Printer className="w-4 h-4 text-red-600" /> PDF (.pdf)
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

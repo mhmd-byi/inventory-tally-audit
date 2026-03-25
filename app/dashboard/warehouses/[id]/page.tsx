@@ -320,26 +320,29 @@ export default function WarehouseAuditPage() {
     }))
   }
 
-  const handleAddQuantitySubmit = (e: React.FormEvent) => {
+  const handleAddQuantitySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const { productId, target, valToAdd } = addQtyModal
     if (!productId || !target || !valToAdd) return
 
-    setInputs((prev) => {
-      const currentVal = Number(prev[productId][target === 'system' ? 'systemVal' : 'auditVal']) || 0
-      const added = Number(valToAdd) || 0
-      const newVal = (currentVal + added).toString()
+    const currentVal = Number(inputs[productId][target === 'system' ? 'systemVal' : 'auditVal']) || 0
+    const added = Number(valToAdd) || 0
+    const newVal = (currentVal + added).toString()
 
-      return {
-        ...prev,
-        [productId]: {
-          ...prev[productId],
-          [target === 'system' ? 'systemVal' : 'auditVal']: newVal,
-        },
-      }
-    })
+    // 1. Update UI state immediately
+    setInputs((prev) => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        [target === 'system' ? 'systemVal' : 'auditVal']: newVal,
+      },
+    }))
 
+    // 2. Clear modal
     setAddQtyModal({ isOpen: false, productId: null, target: null, valToAdd: '' })
+
+    // 3. Trigger Save to Backend
+    await handleSave(productId, target)
   }
 
   const handleDownloadReport = (format: 'xlsx' | 'csv' | 'pdf') => {
@@ -887,17 +890,15 @@ export default function WarehouseAuditPage() {
                                 valToAdd: '',
                               })
                             }
-                            className="p-2 bg-zinc-100 text-black rounded-lg hover:bg-zinc-200 transition-colors"
+                            disabled={saveStatus[item.product._id] === 'saving'}
+                            className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
                             title="Add Quantity"
                           >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleSave(item.product._id, 'system')}
-                            className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
-                            disabled={saveStatus[item.product._id] === 'saving'}
-                          >
-                            <Save className="w-4 h-4" />
+                            {saveStatus[item.product._id] === 'saving' ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Plus className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
                       )}
@@ -931,20 +932,17 @@ export default function WarehouseAuditPage() {
                                 valToAdd: '',
                               })
                             }
-                            disabled={warehouse?.auditStatus !== 'in_progress'}
-                            className="p-2 bg-zinc-100 text-black rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-50"
+                            disabled={
+                              warehouse?.auditStatus !== 'in_progress' || saveStatus[item.product._id] === 'saving'
+                            }
+                            className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
                             title="Add Quantity"
                           >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleSave(item.product._id, 'audit')}
-                            className="p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
-                            disabled={
-                              saveStatus[item.product._id] === 'saving' || warehouse?.auditStatus !== 'in_progress'
-                            }
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
+                            {saveStatus[item.product._id] === 'saving' ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
                       )}
@@ -1407,7 +1405,7 @@ export default function WarehouseAuditPage() {
                   type="submit"
                   className="flex-1 py-3 text-white font-bold text-sm bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-md"
                 >
-                  Add to Total
+                  Add & Save
                 </button>
               </div>
             </form>

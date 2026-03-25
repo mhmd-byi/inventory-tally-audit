@@ -96,10 +96,10 @@ export default function WarehouseAuditPage() {
 
   // Add Quantity Modal
   const [addQtyModal, setAddQtyModal] = useState<{
-    isOpen: boolean;
-    productId: string | null;
-    target: 'system' | 'audit' | null;
-    valToAdd: string;
+    isOpen: boolean
+    productId: string | null
+    target: 'system' | 'audit' | null
+    valToAdd: string
   }>({
     isOpen: false,
     productId: null,
@@ -837,7 +837,8 @@ export default function WarehouseAuditPage() {
                     <div className="flex items-center justify-center space-x-2">
                       <input
                         type="number"
-                        disabled={!isAdmin}
+                        disabled={true}
+                        // disabled={!isAdmin}
                         value={inputs[item.product._id]?.bookStockValue || ''}
                         onChange={(e) => handleInputChange(item.product._id, 'bookStockValue', e.target.value)}
                         className={`w-20 px-2 py-1.5 border rounded-lg font-bold text-xs focus:ring-2 focus:ring-black outline-none text-center transition-all ${
@@ -863,7 +864,8 @@ export default function WarehouseAuditPage() {
                     <div className="flex items-center justify-center space-x-2">
                       <input
                         type="number"
-                        disabled={!isStoreManager}
+                        disabled={true}
+                        // disabled={!isStoreManager}
                         value={inputs[item.product._id]?.systemVal || ''}
                         onChange={(e) => handleInputChange(item.product._id, 'system', e.target.value)}
                         className={`w-24 px-3 py-2 border rounded-lg font-bold text-sm focus:ring-2 focus:ring-black outline-none text-center transition-all ${
@@ -878,7 +880,12 @@ export default function WarehouseAuditPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              setAddQtyModal({ isOpen: true, productId: item.product._id, target: 'system', valToAdd: '' })
+                              setAddQtyModal({
+                                isOpen: true,
+                                productId: item.product._id,
+                                target: 'system',
+                                valToAdd: '',
+                              })
                             }
                             className="p-2 bg-zinc-100 text-black rounded-lg hover:bg-zinc-200 transition-colors"
                             title="Add Quantity"
@@ -901,7 +908,8 @@ export default function WarehouseAuditPage() {
                     <div className="flex items-center justify-center space-x-2">
                       <input
                         type="number"
-                        disabled={!isAuditor || warehouse?.auditStatus !== 'in_progress'}
+                        // disabled={!isAuditor || warehouse?.auditStatus !== 'in_progress'}
+                        disabled={true}
                         value={inputs[item.product._id]?.auditVal || ''}
                         onChange={(e) => handleInputChange(item.product._id, 'audit', e.target.value)}
                         className={`w-24 px-3 py-2 border rounded-lg font-bold text-sm focus:ring-2 focus:ring-black outline-none text-center transition-all ${
@@ -916,7 +924,12 @@ export default function WarehouseAuditPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              setAddQtyModal({ isOpen: true, productId: item.product._id, target: 'audit', valToAdd: '' })
+                              setAddQtyModal({
+                                isOpen: true,
+                                productId: item.product._id,
+                                target: 'audit',
+                                valToAdd: '',
+                              })
                             }
                             disabled={warehouse?.auditStatus !== 'in_progress'}
                             className="p-2 bg-zinc-100 text-black rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-50"

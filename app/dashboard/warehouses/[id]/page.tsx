@@ -358,7 +358,9 @@ export default function WarehouseAuditPage() {
         'Book Stock Value': input.bookStockValue || item.bookStockValue || 0,
         'System Quantity': input.systemVal || item.quantity || 0,
         'Physical Count': input.auditVal || '0',
-        Variance: (Number(input.auditVal || 0) - Number(input.systemVal || item.quantity || 0)).toString(),
+        Variance: (
+          Number(input.bookStockVal || item.bookStock || 0) - Number(input.auditVal || 0)
+        ).toString(),
       }
     })
 

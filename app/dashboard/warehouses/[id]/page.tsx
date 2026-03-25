@@ -943,7 +943,7 @@ export default function WarehouseAuditPage() {
                             {saveStatus[item.product._id] === 'saving' ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                              <CheckCircle2 className="w-4 h-4" />
+                              <Plus className="w-4 h-4" />
                             )}
                           </button>
                         </div>

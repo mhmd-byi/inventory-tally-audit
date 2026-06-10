@@ -23,6 +23,7 @@ import {
   X,
   ChevronDown,
   FileText,
+  MoreHorizontal,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
@@ -109,6 +110,8 @@ export default function WarehouseAuditPage() {
 
   // Report Dropdown State
   const [showDownloadMenu, setShowDownloadMenu] = useState(false)
+  // Mobile overflow menu state
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   // Checklist states
   const [showChecklistModal, setShowChecklistModal] = useState(false)
@@ -619,19 +622,21 @@ export default function WarehouseAuditPage() {
             Back to Warehouses
           </button>
 
-          <div className="flex justify-between items-end pb-6 border-b border-zinc-100">
+          <div className="flex justify-between items-start sm:items-end pb-6 border-b border-zinc-100 gap-4">
             <div>
               <div className="flex items-center space-x-3 mb-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest bg-black text-white px-2 py-0.5 rounded">
                   {warehouse.code}
                 </span>
-                <span className="text-zinc-400 font-medium text-xs uppercase tracking-wider">
+                <span className="text-zinc-400 font-medium text-xs uppercase tracking-wider hidden sm:inline">
                   {warehouse.organization.name}
                 </span>
               </div>
-              <h2 className="text-3xl font-bold tracking-tight text-black">{warehouse.name}</h2>
+              <h2 className="text-xl sm:text-3xl font-bold tracking-tight text-black">{warehouse.name}</h2>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Desktop action buttons */}
+            <div className="hidden md:flex items-center gap-3 shrink-0">
               {isLeadAuditor && (
                 <>
                   {warehouse?.auditStatus === 'in_progress' ? (
@@ -668,15 +673,11 @@ export default function WarehouseAuditPage() {
                 </button>
               )}
               <button
-                onClick={() => {
-                  fetchChecklist()
-                  setShowChecklistModal(true)
-                }}
+                onClick={() => { fetchChecklist(); setShowChecklistModal(true) }}
                 className="border-2 border-emerald-600 text-emerald-600 px-6 py-3 font-bold text-sm rounded-xl hover:bg-emerald-50 transition-all flex items-center shadow-lg"
               >
                 <ClipboardCheck className="w-4 h-4 mr-2" /> Verification Checklist
               </button>
-
               <div className="relative">
                 <button
                   onClick={() => setShowDownloadMenu(!showDownloadMenu)}
@@ -684,28 +685,78 @@ export default function WarehouseAuditPage() {
                 >
                   <Download className="w-4 h-4 mr-2" /> Download Report <ChevronDown className="w-4 h-4 ml-2" />
                 </button>
-
                 {showDownloadMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                    <button
-                      onClick={() => handleDownloadReport('xlsx')}
-                      className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors"
-                    >
+                  <div className="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                    <button onClick={() => handleDownloadReport('xlsx')} className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors">
                       <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Excel (.xlsx)
                     </button>
-                    <button
-                      onClick={() => handleDownloadReport('csv')}
-                      className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors"
-                    >
+                    <button onClick={() => handleDownloadReport('csv')} className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors">
                       <FileText className="w-4 h-4 text-blue-600" /> CSV (.csv)
                     </button>
-                    <button
-                      onClick={() => handleDownloadReport('pdf')}
-                      className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors border-t border-zinc-100"
-                    >
+                    <button onClick={() => handleDownloadReport('pdf')} className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors border-t border-zinc-100">
                       <Printer className="w-4 h-4 text-red-600" /> PDF (.pdf)
                     </button>
                   </div>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile: primary audit button + overflow menu */}
+            <div className="flex md:hidden items-center gap-2 shrink-0">
+              {isLeadAuditor && (
+                warehouse?.auditStatus === 'in_progress' ? (
+                  <button
+                    onClick={() => handleAuditControl('close')}
+                    className="bg-red-600 text-white px-4 py-2.5 font-bold text-xs rounded-xl hover:bg-red-700 transition-all flex items-center shadow-lg"
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-1.5" /> Finish
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleAuditControl('initiate')}
+                    className="bg-emerald-600 text-white px-4 py-2.5 font-bold text-xs rounded-xl hover:bg-emerald-700 transition-all flex items-center shadow-lg"
+                  >
+                    <Save className="w-4 h-4 mr-1.5" /> Start Audit
+                  </button>
+                )
+              )}
+              <div className="relative">
+                <button
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                  className="p-2.5 border border-zinc-200 rounded-xl hover:bg-zinc-100 transition-colors"
+                >
+                  <MoreHorizontal className="w-5 h-5 text-zinc-600" />
+                </button>
+                {showMobileMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMobileMenu(false)} />
+                    <div className="absolute right-0 mt-2 w-52 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                      {warehouse?.auditStatus === 'completed' && isLeadAuditor && (
+                        <button onClick={() => { handleAuditControl('reset'); setShowMobileMenu(false) }} className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 border-b border-zinc-100">
+                          Reset Audit Status
+                        </button>
+                      )}
+                      {isStoreManager && (
+                        <button onClick={() => { setShowProductModal(true); setShowMobileMenu(false) }} className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3">
+                          <Plus className="w-4 h-4" /> Add Item
+                        </button>
+                      )}
+                      <button onClick={() => { fetchChecklist(); setShowChecklistModal(true); setShowMobileMenu(false) }} className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3">
+                        <ClipboardCheck className="w-4 h-4 text-emerald-600" /> Verification Checklist
+                      </button>
+                      <div className="border-t border-zinc-100">
+                        <button onClick={() => { handleDownloadReport('xlsx'); setShowMobileMenu(false) }} className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3">
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Excel (.xlsx)
+                        </button>
+                        <button onClick={() => { handleDownloadReport('csv'); setShowMobileMenu(false) }} className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3">
+                          <FileText className="w-4 h-4 text-blue-600" /> CSV (.csv)
+                        </button>
+                        <button onClick={() => { handleDownloadReport('pdf'); setShowMobileMenu(false) }} className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3">
+                          <Printer className="w-4 h-4 text-red-600" /> PDF (.pdf)
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -765,8 +816,104 @@ export default function WarehouseAuditPage() {
           </div>
         </div>
 
-        {/* Main Table Section */}
-        <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden shadow-sm">
+        {/* Mobile Card Layout */}
+        <div className="md:hidden space-y-3">
+          {filteredInventory.map((item) => (
+            <div key={item.product._id} className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center">
+                  <div className="w-9 h-9 bg-zinc-100 rounded-xl flex items-center justify-center mr-3 border border-zinc-200 shrink-0">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-black">{item.product.name}</div>
+                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-tight">SKU: {item.product.sku}</div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black text-black bg-zinc-100 px-2 py-1 rounded uppercase tracking-widest border border-zinc-200 shrink-0 ml-2">
+                  {item.product.unit}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="bg-zinc-50 rounded-xl p-3">
+                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Book Stock (ERP)</div>
+                  <div className="font-bold text-sm">{inputs[item.product._id]?.bookStockVal || 0}</div>
+                </div>
+                <div className="bg-zinc-50 rounded-xl p-3">
+                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Book Value</div>
+                  <div className="font-bold text-sm">{inputs[item.product._id]?.bookStockValue || 0}</div>
+                </div>
+              </div>
+
+              {isStoreManager && (
+                <div className="flex items-end gap-2 mb-2">
+                  <div className="flex-1">
+                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Set Stock</div>
+                    <input
+                      type="number"
+                      disabled={true}
+                      value={inputs[item.product._id]?.systemVal || ''}
+                      onChange={(e) => handleInputChange(item.product._id, 'system', e.target.value)}
+                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl font-bold text-sm outline-none text-center bg-zinc-50"
+                      placeholder="Qty"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAddQtyModal({ isOpen: true, productId: item.product._id, target: 'system', valToAdd: '' })}
+                    disabled={saveStatus[item.product._id] === 'saving'}
+                    className="p-2.5 bg-black text-white rounded-xl hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50 mb-0.5"
+                  >
+                    {saveStatus[item.product._id] === 'saving' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                  </button>
+                </div>
+              )}
+
+              {isAuditor && (
+                <div className="flex items-end gap-2 mb-2">
+                  <div className="flex-1">
+                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Physical Count</div>
+                    <input
+                      type="number"
+                      disabled={true}
+                      value={inputs[item.product._id]?.auditVal || ''}
+                      onChange={(e) => handleInputChange(item.product._id, 'audit', e.target.value)}
+                      className={`w-full px-3 py-2.5 border rounded-xl font-bold text-sm outline-none text-center transition-all ${
+                        warehouse?.auditStatus === 'in_progress'
+                          ? 'border-zinc-200 bg-white'
+                          : 'border-zinc-100 bg-zinc-50 text-zinc-400 opacity-60'
+                      }`}
+                      placeholder="Count"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAddQtyModal({ isOpen: true, productId: item.product._id, target: 'audit', valToAdd: '' })}
+                    disabled={warehouse?.auditStatus !== 'in_progress' || saveStatus[item.product._id] === 'saving'}
+                    className="p-2.5 bg-black text-white rounded-xl hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50 mb-0.5"
+                  >
+                    {saveStatus[item.product._id] === 'saving' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                  </button>
+                </div>
+              )}
+
+              {saveStatus[item.product._id] === 'success' && (
+                <div className="flex items-center text-emerald-600 text-xs font-bold mt-1">
+                  <CheckCircle2 className="w-3 h-3 mr-1" /> Saved
+                </div>
+              )}
+              {saveStatus[item.product._id] === 'error' && (
+                <div className="flex items-center text-red-500 text-xs font-bold mt-1">
+                  <AlertCircle className="w-3 h-3 mr-1" /> Sync Error
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table Section */}
+        <div className="hidden md:block bg-white border border-zinc-200 rounded-3xl overflow-hidden shadow-sm">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-zinc-50 border-b border-zinc-200">
@@ -994,6 +1141,7 @@ export default function WarehouseAuditPage() {
             </tbody>
           </table>
         </div>
+        {/* End Desktop Table Section */}
 
         {filteredInventory.length === 0 && inventory.length > 0 && (
           <div className="text-center py-20 border-2 border-dashed border-zinc-100 rounded-[2.5rem] mt-8">
@@ -1023,9 +1171,9 @@ export default function WarehouseAuditPage() {
       </main>
 
       {showProductModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-4xl w-full h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="p-5 sm:p-8 border-b border-zinc-100 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-bold text-black flex items-center">
                   <Package className="w-5 h-5 mr-3" /> Add Item to {warehouse?.name}
@@ -1042,7 +1190,7 @@ export default function WarehouseAuditPage() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div className="flex-1 overflow-y-auto p-5 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10">
               <div className="space-y-6">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center">
                   <Plus className="w-4 h-4 mr-3 text-black" /> Individual Entry
@@ -1177,9 +1325,9 @@ export default function WarehouseAuditPage() {
 
       {/* Verification Checklist Modal */}
       {showChecklistModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8">
-            <div className="sticky top-0 bg-white border-b border-zinc-200 p-6 flex justify-between items-center rounded-t-2xl">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-4xl w-full h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="sticky top-0 bg-white border-b border-zinc-200 p-5 sm:p-6 flex justify-between items-center rounded-t-2xl">
               <div>
                 <h3 className="text-2xl font-bold text-black flex items-center">
                   <ClipboardCheck className="w-6 h-6 mr-3 text-emerald-600" />
@@ -1220,7 +1368,7 @@ export default function WarehouseAuditPage() {
                 <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
               </div>
             ) : checklistTemplate ? (
-              <div className="p-6">
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6">
                 {/* Group items by category */}
                 {Object.entries(
                   checklistTemplate.items.reduce((acc: any, item: any) => {
@@ -1323,7 +1471,7 @@ export default function WarehouseAuditPage() {
                 ))}
 
                 {/* Action Buttons */}
-                <div className="sticky bottom-0 bg-white border-t border-zinc-200 pt-6 mt-6 flex justify-between items-center">
+                <div className="bg-white border-t border-zinc-200 pt-6 mt-6 flex justify-between items-center">
                   <button
                     onClick={() => setShowChecklistModal(false)}
                     className="px-6 py-3 border-2 border-zinc-300 text-zinc-700 font-bold text-sm rounded-xl hover:bg-zinc-50 transition-all"
@@ -1366,8 +1514,8 @@ export default function WarehouseAuditPage() {
 
       {/* Add Quantity Modal */}
       {addQtyModal.isOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-60 p-4 font-sans">
-          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-60 sm:p-4 font-sans">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden">
             <div className="p-6 border-b border-zinc-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-black flex items-center">
                 <Plus className="w-5 h-5 mr-3 text-emerald-600" /> Add Quantity

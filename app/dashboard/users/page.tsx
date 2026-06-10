@@ -261,17 +261,17 @@ export default function UsersPage() {
     <div className="min-h-screen bg-white text-black font-sans">
       <DashboardHeader />
 
-      <main className="max-w-7xl mx-auto px-4 py-10">
-        <div className="flex justify-between items-end mb-10 pb-6 border-b border-zinc-200">
+      <main className="max-w-7xl mx-auto px-4 py-6 sm:py-10">
+        <div className="flex justify-between items-end mb-8 sm:mb-10 pb-6 border-b border-zinc-200">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">System Users</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">System Users</h2>
             <p className="text-zinc-500 font-medium text-sm mt-1">Manage accounts and platform access</p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-black text-white px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all flex items-center shadow-sm"
+            className="bg-black text-white px-4 sm:px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all flex items-center shadow-sm"
           >
-            <UserPlus className="w-4 h-4 mr-2" /> Add New User
+            <UserPlus className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Add New User</span>
           </button>
         </div>
 
@@ -302,7 +302,7 @@ export default function UsersPage() {
                   .map((u) => (
                     <div
                       key={u._id}
-                      className="flex items-center justify-between bg-white border border-amber-200 rounded-xl px-5 py-4 shadow-sm"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white border border-amber-200 rounded-xl px-5 py-4 shadow-sm gap-3"
                     >
                       <div>
                         <p className="font-bold text-sm text-black">{u.name}</p>
@@ -312,7 +312,7 @@ export default function UsersPage() {
                           Created by Lead Auditor
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 shrink-0">
                         <button
                           onClick={() => handleApproval(u._id, 'approve')}
                           className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all flex items-center shadow"
@@ -335,7 +335,56 @@ export default function UsersPage() {
             </div>
           )}
 
-          <table className="w-full text-left">
+          {/* Mobile card layout */}
+          <div className="md:hidden divide-y divide-zinc-100">
+            {users.map((user) => (
+              <div key={user._id} className="p-4 flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center font-bold text-black uppercase text-sm border border-zinc-200 shrink-0">
+                    {user.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-black truncate">{user.name}</div>
+                    <div className="text-xs font-medium text-zinc-400 truncate">{user.email}</div>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider border border-zinc-200 px-2 py-0.5 rounded-md bg-white">
+                        {formatRole(user.role)}
+                      </span>
+                      {user.approvalStatus === 'pending' && (
+                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                          Pending
+                        </span>
+                      )}
+                      {user.approvalStatus === 'rejected' && (
+                        <span className="text-[9px] font-black uppercase tracking-widest text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
+                          Rejected
+                        </span>
+                      )}
+                    </div>
+                    {user.role !== 'admin' && (
+                      <div className="text-[10px] font-bold uppercase text-zinc-500 mt-1.5">
+                        {typeof user.organization === 'object' ? (user.organization as any)?.name : ''}
+                        {user.role === 'lead_auditor' && <span className="text-emerald-600 ml-1">· Full Access</span>}
+                      </div>
+                    )}
+                    {user.role === 'admin' && (
+                      <div className="text-[10px] font-bold uppercase text-zinc-400 mt-1">All Systems Access</div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  className="text-zinc-300 hover:text-red-500 transition-all p-1.5 disabled:opacity-0 shrink-0"
+                  onClick={() => deleteUser(user._id)}
+                  disabled={user.email === session?.user?.email}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table layout */}
+          <table className="hidden md:table w-full text-left">
             <thead>
               <tr className="bg-zinc-50 border-b border-zinc-200">
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">Name & Email</th>
@@ -437,9 +486,9 @@ export default function UsersPage() {
       </main>
 
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
-            <div className="flex justify-between items-center mb-10 border-b border-zinc-100 pb-6">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl overflow-y-auto h-[95vh] sm:h-auto sm:max-h-[90vh] custom-scrollbar">
+            <div className="flex justify-between items-center mb-8 sm:mb-10 border-b border-zinc-100 pb-6">
               <div>
                 <h3 className="text-xl font-bold text-black">User Setup</h3>
                 <p className="text-zinc-500 font-medium text-xs mt-1">Create new system account</p>
@@ -500,7 +549,7 @@ export default function UsersPage() {
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                       Assignment Details
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <label className="text-[9px] font-black uppercase text-zinc-400 ml-1 mb-1 block">Company</label>
                         <select

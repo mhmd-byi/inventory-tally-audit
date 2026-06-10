@@ -57,11 +57,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-white px-4">
       <div className="w-full max-w-md">
         {/* Brand Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 sm:mb-12">
           <div className="inline-flex p-4 bg-black text-white mb-6">
             <Package className="w-10 h-10" />
           </div>
-          <h1 className="text-3xl font-bold text-black">Inventory Audit</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-black">Inventory Audit</h1>
           <p className="text-zinc-500 font-medium text-sm mt-3">Sign in to your account</p>
         </div>
 

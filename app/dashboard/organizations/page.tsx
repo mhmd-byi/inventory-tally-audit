@@ -383,10 +383,10 @@ export default function CompaniesPage() {
     <div className="min-h-screen bg-white text-black font-sans">
       <DashboardHeader />
 
-      <main className="max-w-7xl mx-auto px-4 py-10">
-        <div className="flex justify-between items-end mb-10 pb-6 border-b border-zinc-200">
+      <main className="max-w-7xl mx-auto px-4 py-6 sm:py-10">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-8 sm:mb-10 pb-6 border-b border-zinc-200 gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Companies</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Companies</h2>
             <p className="text-zinc-500 font-medium text-sm mt-1">
               Manage organizations, catalog registry and warehouse networks
             </p>
@@ -398,17 +398,17 @@ export default function CompaniesPage() {
                   fetchBankQuestions()
                   setShowBankModal(true)
                 }}
-                className="border border-zinc-200 text-zinc-600 px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-50 transition-all flex items-center shadow-sm"
+                className="border border-zinc-200 text-zinc-600 px-4 sm:px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-50 transition-all flex items-center shadow-sm"
               >
-                <Library className="w-4 h-4 mr-2" /> Question Bank
+                <Library className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Question Bank</span>
               </button>
             )}
             {isAdmin && (
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="bg-black text-white px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all flex items-center shadow-sm"
+                className="bg-black text-white px-4 sm:px-6 py-3 font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all flex items-center shadow-sm"
               >
-                <Plus className="w-4 h-4 mr-2" /> Add Company
+                <Plus className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Add Company</span>
               </button>
             )}
           </div>
@@ -441,10 +441,10 @@ export default function CompaniesPage() {
                           fetchWarehouses(org._id)
                           setShowWarehouseModal(true)
                         }}
-                        className="border border-zinc-200 px-4 py-2 hover:border-black rounded-lg text-xs font-bold transition-all text-zinc-600 inline-flex items-center"
+                        className="border border-zinc-200 px-3 sm:px-4 py-2 hover:border-black rounded-lg text-xs font-bold transition-all text-zinc-600 inline-flex items-center"
                       >
-                        <WarehouseIcon className="w-3 h-3 mr-2" />
-                        Warehouses
+                        <WarehouseIcon className="w-3 h-3 sm:mr-2" />
+                        <span className="hidden sm:inline">Warehouses</span>
                       </button>
                       {isAdmin && (
                         <>
@@ -485,8 +485,8 @@ export default function CompaniesPage() {
 
       {/* Create/Edit Company Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-xl max-h-[90vh] overflow-y-auto custom-scrollbar">
             <h3 className="text-xl font-bold mb-6 border-b border-zinc-100 pb-4 text-black">
               {editingOrg ? 'Edit Company' : 'Add New Company'}
             </h3>
@@ -537,11 +537,11 @@ export default function CompaniesPage() {
 
       {/* Warehouse Management Modal */}
       {showWarehouseModal && selectedOrg && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="p-8 border-b border-zinc-100 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-6xl w-full h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="p-5 sm:p-8 border-b border-zinc-100 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-black">{selectedOrg.name} / Warehouse Network</h3>
+                <h3 className="text-base sm:text-xl font-bold text-black">{selectedOrg.name} / Warehouses</h3>
                 <p className="text-zinc-500 font-medium text-xs mt-1">
                   Manage operational nodes and physical locations
                 </p>
@@ -553,7 +553,7 @@ export default function CompaniesPage() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="flex-1 overflow-y-auto p-5 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-10">
               <div className="lg:col-span-1 space-y-6">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center">
                   <WarehouseIcon className="w-4 h-4 mr-3 text-black" /> Registered Branches
@@ -644,7 +644,7 @@ export default function CompaniesPage() {
                 )}
               </div>
 
-              <div className="lg:col-span-1 p-8 border border-zinc-200 bg-zinc-50/10 rounded-3xl self-start">
+              <div className="lg:col-span-1 p-5 sm:p-8 border border-zinc-200 bg-zinc-50/10 rounded-3xl self-start">
                 <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500">
                   <Plus className="w-4 h-4 mr-3 text-black" />
                   {editingWarehouse ? 'Edit Warehouse' : 'Add Operational Node'}
@@ -728,7 +728,7 @@ export default function CompaniesPage() {
               </div>
 
               {isAdmin && (
-                <div className="lg:col-span-1 p-8 border border-zinc-200 bg-white rounded-3xl self-start">
+                <div className="lg:col-span-1 p-5 sm:p-8 border border-zinc-200 bg-white rounded-3xl self-start">
                   <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500">
                     <FileSpreadsheet className="w-4 h-4 mr-3 text-black" /> Bulk Import Nodes
                   </h4>
@@ -808,9 +808,9 @@ export default function CompaniesPage() {
 
       {/* Question Bank Modal */}
       {showBankModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="p-8 border-b border-zinc-100 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-60 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="p-5 sm:p-8 border-b border-zinc-100 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-bold text-black flex items-center">
                   <Library className="w-5 h-5 mr-3" /> Question Bank
@@ -835,9 +835,9 @@ export default function CompaniesPage() {
                 </button>
               </div>
             </div>
-            <div className="p-8 border-b border-zinc-100 bg-zinc-50/50">
-              <form onSubmit={handleAddToBank} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="md:col-span-1">
+            <div className="p-5 sm:p-8 border-b border-zinc-100 bg-zinc-50/50">
+              <form onSubmit={handleAddToBank} className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="sm:col-span-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
                     Category
                   </label>
@@ -850,7 +850,7 @@ export default function CompaniesPage() {
                     className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm"
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div className="sm:col-span-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
                     Question
                   </label>
@@ -863,7 +863,7 @@ export default function CompaniesPage() {
                     className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm"
                   />
                 </div>
-                <div className="md:col-span-1 flex items-end">
+                <div className="sm:col-span-1 flex items-end">
                   <button
                     type="submit"
                     className="w-full py-3.5 bg-black text-white font-bold text-xs rounded-xl hover:bg-zinc-800 transition-all"
@@ -903,9 +903,9 @@ export default function CompaniesPage() {
 
       {/* Warehouse Checklist Configuration Modal */}
       {showWhChecklistModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="p-8 border-b border-zinc-100 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-60 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="p-5 sm:p-8 border-b border-zinc-100 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-bold text-black flex items-center">
                   <CheckSquare className="w-5 h-5 mr-3" /> Checklist for {whChecklistTarget?.name}
@@ -921,7 +921,7 @@ export default function CompaniesPage() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-8">
+            <div className="flex-1 overflow-y-auto p-5 sm:p-8">
               {/* Group questions by category */}
               {Array.from(new Set(bankQuestions.map((q) => q.category))).map((cat) => (
                 <div key={cat} className="mb-8">
@@ -964,7 +964,7 @@ export default function CompaniesPage() {
                 </div>
               )}
             </div>
-            <div className="p-8 border-t border-zinc-100 flex gap-4 bg-zinc-50/50">
+            <div className="p-5 sm:p-8 border-t border-zinc-100 flex gap-4 bg-zinc-50/50">
               <button
                 onClick={() => setShowWhChecklistModal(false)}
                 className="flex-1 py-4 border border-zinc-200 text-black font-bold text-sm rounded-xl hover:bg-zinc-100 transition-all"

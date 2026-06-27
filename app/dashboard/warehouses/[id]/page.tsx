@@ -607,6 +607,18 @@ export default function WarehouseAuditPage() {
       </div>
     )
 
+  // Audit progress — derived from already-loaded inventory, no extra fetch needed
+  const auditInitiatedAt = warehouse?.auditInitiatedAt ? new Date(warehouse.auditInitiatedAt) : null
+  const auditedCount = auditInitiatedAt
+    ? inventory.filter(
+        (item) => item.lastAuditDate && new Date(item.lastAuditDate) >= auditInitiatedAt
+      ).length
+    : 0
+  const totalCount = inventory.length
+  const progressPct = totalCount > 0 ? Math.round((auditedCount / totalCount) * 100) : 0
+  const ringR = 34
+  const ringCircumference = 2 * Math.PI * ringR
+
   return (
     <div className="min-h-screen bg-white text-black font-sans">
       <DashboardHeader />
@@ -789,6 +801,60 @@ export default function WarehouseAuditPage() {
                         : 'Please wait for your Lead Auditor to start the session.'}
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Audit Progress Banner */}
+          {totalCount > 0 && (
+            <div className="mt-6 border border-zinc-200 rounded-2xl p-4 sm:p-5 bg-zinc-50/40">
+              <div className="flex items-center gap-5 sm:gap-8">
+                {/* SVG ring */}
+                <div className="relative shrink-0">
+                  <svg width="84" height="84" className="-rotate-90">
+                    <circle cx="42" cy="42" r={ringR} fill="none" stroke="#f4f4f5" strokeWidth="7" />
+                    <circle
+                      cx="42" cy="42" r={ringR} fill="none"
+                      stroke={progressPct === 100 ? '#10b981' : progressPct > 0 ? '#000000' : '#e4e4e7'}
+                      strokeWidth="7"
+                      strokeLinecap="round"
+                      strokeDasharray={ringCircumference}
+                      strokeDashoffset={ringCircumference - (progressPct / 100) * ringCircumference}
+                      style={{ transition: 'stroke-dashoffset 0.7s ease' }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-sm font-black">{progressPct}%</span>
+                  </div>
+                </div>
+
+                {/* Text stats */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">Audit Progress</p>
+                  <p className="text-2xl font-black tracking-tight">
+                    {auditedCount}
+                    <span className="text-zinc-400 font-bold text-base ml-1">/ {totalCount} products</span>
+                  </p>
+                  <p className="text-xs text-zinc-400 font-medium mt-0.5 mb-3">
+                    {auditedCount === totalCount && totalCount > 0
+                      ? 'All products audited'
+                      : `${totalCount - auditedCount} product${totalCount - auditedCount !== 1 ? 's' : ''} remaining`}
+                  </p>
+                  <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${progressPct === 100 ? 'bg-emerald-500' : progressPct > 0 ? 'bg-black' : 'bg-zinc-200'}`}
+                      style={{ width: `${Math.max(progressPct, progressPct > 0 ? 2 : 0)}%`, transition: 'width 0.7s ease' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Completion badge on the right */}
+                {progressPct === 100 && (
+                  <div className="shrink-0 hidden sm:flex flex-col items-center">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 mt-1">Complete</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

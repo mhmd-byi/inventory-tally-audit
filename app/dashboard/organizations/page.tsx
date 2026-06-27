@@ -41,6 +41,9 @@ interface Warehouse {
   location?: string
   address?: string
   status: string
+  auditStatus?: 'not_started' | 'in_progress' | 'completed'
+  totalProducts?: number
+  auditedProducts?: number
   checklistQuestions?: { category: string; question: string; responseType: string; order: number }[]
 }
 
@@ -55,6 +58,8 @@ export default function CompaniesPage() {
 
   // Warehouse Modal States
   const [showWarehouseModal, setShowWarehouseModal] = useState(false)
+  const [showAddNodeModal, setShowAddNodeModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [orgWarehouses, setOrgWarehouses] = useState<Warehouse[]>([])
   const [whLoading, setWhLoading] = useState(false)
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null)
@@ -180,6 +185,7 @@ export default function CompaniesPage() {
         const data = await res.json()
         setWhFormData({ name: '', code: '', location: '', address: '' })
         setEditingWarehouse(null)
+        setShowAddNodeModal(false)
         fetchWarehouses(selectedOrg._id)
 
         // Proactively prompt to configure checklist for NEW warehouses
@@ -538,94 +544,139 @@ export default function CompaniesPage() {
       {/* Warehouse Management Modal */}
       {showWarehouseModal && selectedOrg && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-6xl w-full h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="p-5 sm:p-8 border-b border-zinc-100 flex justify-between items-center">
-              <div>
-                <h3 className="text-base sm:text-xl font-bold text-black">{selectedOrg.name} / Warehouses</h3>
-                <p className="text-zinc-500 font-medium text-xs mt-1">
-                  Manage operational nodes and physical locations
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-3xl w-full h-[95vh] sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+
+            {/* Header */}
+            <div className="p-5 sm:p-7 border-b border-zinc-100 flex items-center justify-between gap-3 shrink-0">
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-bold text-black truncate">{selectedOrg.name}</h3>
+                <p className="text-zinc-400 font-medium text-xs mt-0.5">
+                  {orgWarehouses.length} warehouse{orgWarehouses.length !== 1 ? 's' : ''} registered
                 </p>
               </div>
-              <button
-                onClick={() => setShowWarehouseModal(false)}
-                className="text-zinc-400 hover:text-black transition-all p-2"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {(isAdmin || isStoreManager) && (
+                  <button
+                    onClick={() => {
+                      setEditingWarehouse(null)
+                      setWhFormData({ name: '', code: '', location: '', address: '' })
+                      setWhError('')
+                      setShowAddNodeModal(true)
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-black text-white text-xs font-bold rounded-xl hover:bg-zinc-800 transition-all"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Add Node</span>
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={() => { setBulkSummary(null); setShowImportModal(true) }}
+                    className="flex items-center gap-1.5 px-3 py-2 border border-zinc-200 text-zinc-700 text-xs font-bold rounded-xl hover:border-black hover:text-black transition-all"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Import</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowWarehouseModal(false)}
+                  className="p-2 text-zinc-400 hover:text-black hover:bg-zinc-100 rounded-xl transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-10">
-              <div className="lg:col-span-1 space-y-6">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center">
-                  <WarehouseIcon className="w-4 h-4 mr-3 text-black" /> Registered Branches
-                </h4>
-                {whLoading ? (
-                  <div className="p-10 text-center font-medium text-zinc-400">Syncing directory...</div>
-                ) : (
-                  <div className="space-y-3">
-                    {orgWarehouses.map((wh) => (
+
+            {/* Warehouse list — full width */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-7">
+              {whLoading ? (
+                <div className="flex items-center justify-center py-20 text-zinc-400">
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  <span className="text-sm font-medium">Loading warehouses…</span>
+                </div>
+              ) : orgWarehouses.length === 0 ? (
+                <div className="py-20 text-center border border-dashed border-zinc-200 rounded-3xl text-zinc-300 font-bold text-xs uppercase tracking-widest">
+                  No warehouses registered for this company
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {orgWarehouses.map((wh) => {
+                    const total = wh.totalProducts ?? 0
+                    const audited = wh.auditedProducts ?? 0
+                    const pct = total > 0 ? Math.round((audited / total) * 100) : 0
+                    return (
                       <div
                         key={wh._id}
-                        className="p-5 border border-zinc-100 bg-zinc-50/10 rounded-2xl flex justify-between items-center group hover:border-black transition-colors"
+                        className="p-4 sm:p-5 border border-zinc-100 rounded-2xl flex items-start justify-between gap-4 group hover:border-zinc-300 transition-colors"
                       >
-                        <div>
-                          <p className="font-bold text-sm">{wh.name}</p>
-                          <div className="flex flex-col text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-1 gap-0.5">
-                            <div className="flex items-center">
-                              <MapPin className="w-3 h-3 mr-1" /> {wh.location || 'Location Not Set'}
-                            </div>
-                            {wh.address && (
-                              <div className="flex items-center text-[9px] lowercase first-letter:uppercase">
-                                <Building2 className="w-2.5 h-2.5 mr-1" /> {wh.address}
-                              </div>
-                            )}
+                        {/* Info + progress */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-bold text-sm text-black">{wh.name}</p>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded">{wh.code}</span>
                           </div>
+                          <div className="flex items-center text-[10px] font-bold text-zinc-400 uppercase tracking-wider gap-3">
+                            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{wh.location || 'No location'}</span>
+                            {wh.address && <span className="hidden sm:flex items-center gap-1 font-medium text-zinc-400 text-[10px] normal-case"><Building2 className="w-3 h-3 shrink-0" />{wh.address}</span>}
+                          </div>
+                          {total > 0 && (
+                            <div className="mt-3">
+                              <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest text-zinc-400 mb-1">
+                                <span>{audited} / {total} audited</span>
+                                <span className={pct === 100 ? 'text-emerald-500' : ''}>{pct}%</span>
+                              </div>
+                              <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-black' : 'bg-zinc-200'}`}
+                                  style={{ width: `${Math.max(pct, pct > 0 ? 3 : 0)}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             onClick={() => router.push(`/dashboard/warehouses/${wh._id}`)}
-                            className="p-2.5 bg-zinc-50 text-black border border-zinc-200 rounded-xl hover:bg-black hover:text-white transition-all shadow-sm group-hover:shadow-md"
+                            className="p-2 bg-zinc-50 text-black border border-zinc-200 rounded-xl hover:bg-black hover:text-white transition-all"
                             title="View inventory"
                           >
                             <ClipboardList className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => router.push(`/dashboard/warehouses/${wh._id}?tab=checklist`)}
-                            className="p-2.5 bg-zinc-50 text-emerald-600 border border-zinc-200 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm group-hover:shadow-md"
+                            className="p-2 bg-zinc-50 text-emerald-600 border border-zinc-200 rounded-xl hover:bg-emerald-600 hover:text-white transition-all"
                             title="Verification Checklist"
                           >
                             <ClipboardCheck className="w-4 h-4" />
                           </button>
                           {isLeadAuditor && (
-                            <>
-                              <button
-                                onClick={() => handleOpenWhChecklist(wh)}
-                                className="p-2.5 bg-zinc-50 text-blue-600 border border-zinc-200 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm group-hover:shadow-md"
-                                title="Configure Checklist"
-                              >
-                                <CheckSquare className="w-4 h-4" />
-                              </button>
-                            </>
+                            <button
+                              onClick={() => handleOpenWhChecklist(wh)}
+                              className="p-2 bg-zinc-50 text-blue-600 border border-zinc-200 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
+                              title="Configure Checklist"
+                            >
+                              <CheckSquare className="w-4 h-4" />
+                            </button>
                           )}
                           {isAdmin && (
                             <>
                               <button
                                 onClick={() => {
                                   setEditingWarehouse(wh)
-                                  setWhFormData({
-                                    name: wh.name,
-                                    code: wh.code,
-                                    location: wh.location || '',
-                                    address: wh.address || '',
-                                  })
+                                  setWhFormData({ name: wh.name, code: wh.code, location: wh.location || '', address: wh.address || '' })
+                                  setWhError('')
+                                  setShowAddNodeModal(true)
                                 }}
-                                className="p-2.5 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-600 hover:text-black"
+                                className="p-2 hover:bg-zinc-100 rounded-xl transition-colors text-zinc-500 hover:text-black"
                                 title="Edit warehouse"
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => handleDeleteWarehouse(wh._id, wh.name)}
-                                className="p-2.5 hover:bg-red-50 rounded-lg transition-colors text-zinc-600 hover:text-red-600"
+                                className="p-2 hover:bg-red-50 rounded-xl transition-colors text-zinc-500 hover:text-red-600"
                                 title="Delete warehouse"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -634,173 +685,182 @@ export default function CompaniesPage() {
                           )}
                         </div>
                       </div>
-                    ))}
-                    {orgWarehouses.length === 0 && (
-                      <div className="py-20 text-center border border-dashed border-zinc-200 rounded-3xl text-zinc-300 font-bold text-xs uppercase">
-                        No warehouses registered for this company
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-              <div className="lg:col-span-1 p-5 sm:p-8 border border-zinc-200 bg-zinc-50/10 rounded-3xl self-start">
-                <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500">
-                  <Plus className="w-4 h-4 mr-3 text-black" />
+      {/* Add / Edit Node Sub-modal */}
+      {showAddNodeModal && selectedOrg && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-60 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-100">
+              <div>
+                <h3 className="text-base font-bold text-black">
                   {editingWarehouse ? 'Edit Warehouse' : 'Add Operational Node'}
-                </h4>
-                <form onSubmit={handleCreateWarehouse} className="space-y-4">
+                </h3>
+                <p className="text-xs text-zinc-400 font-medium mt-0.5">{selectedOrg.name}</p>
+              </div>
+              <button
+                onClick={() => { setShowAddNodeModal(false); setEditingWarehouse(null); setWhFormData({ name: '', code: '', location: '', address: '' }) }}
+                className="p-2 text-zinc-400 hover:text-black hover:bg-zinc-100 rounded-xl transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <form onSubmit={handleCreateWarehouse} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Branch Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Main Distribution Center"
+                    required
+                    value={whFormData.name}
+                    onChange={(e) => setWhFormData({ ...whFormData, name: e.target.value })}
+                    className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Unique Node Code</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. WH-001"
+                    required
+                    value={whFormData.code}
+                    onChange={(e) => setWhFormData({ ...whFormData, code: e.target.value })}
+                    className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm"
+                    disabled={!!editingWarehouse}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
-                      Branch Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Main Distribution Center"
-                      required
-                      value={whFormData.name}
-                      onChange={(e) => setWhFormData({ ...whFormData, name: e.target.value })}
-                      className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
-                      Unique Node Code
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. WH-001"
-                      required
-                      value={whFormData.code}
-                      onChange={(e) => setWhFormData({ ...whFormData, code: e.target.value })}
-                      className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm"
-                      disabled={!!editingWarehouse}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
-                      City / Region
-                    </label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">City / Region</label>
                     <input
                       type="text"
                       placeholder="e.g. Karachi South"
                       required
                       value={whFormData.location}
                       onChange={(e) => setWhFormData({ ...whFormData, location: e.target.value })}
-                      className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm"
+                      className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
-                      Full Address
-                    </label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Full Address</label>
                     <input
                       type="text"
-                      placeholder="e.g. Plot 123, Sector 5..."
+                      placeholder="e.g. Plot 123, Sector 5…"
                       value={whFormData.address}
                       onChange={(e) => setWhFormData({ ...whFormData, address: e.target.value })}
-                      className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm shadow-sm"
+                      className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:border-black outline-none font-medium text-sm"
                     />
                   </div>
-                  {editingWarehouse && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingWarehouse(null)
-                        setWhFormData({ name: '', code: '', location: '', address: '' })
-                      }}
-                      className="w-full py-3 border border-zinc-200 text-black font-bold text-sm rounded-xl hover:bg-zinc-100 transition-all"
-                    >
-                      Cancel Edit
-                    </button>
-                  )}
+                </div>
+                {whError && <p className="text-xs font-bold text-red-500 uppercase tracking-widest">{whError}</p>}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddNodeModal(false); setEditingWarehouse(null); setWhFormData({ name: '', code: '', location: '', address: '' }) }}
+                    className="flex-1 py-3 border border-zinc-200 text-black font-bold text-sm rounded-xl hover:bg-zinc-50 transition-all"
+                  >
+                    Cancel
+                  </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full py-4 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all shadow-md disabled:opacity-50"
+                    className="flex-1 py-3 bg-black text-white font-bold text-sm rounded-xl hover:bg-zinc-800 transition-all disabled:opacity-50"
                   >
-                    {editingWarehouse ? 'Update Warehouse' : 'Initialize Warehouse'}
+                    {submitting ? 'Saving…' : editingWarehouse ? 'Update' : 'Add Warehouse'}
                   </button>
-                </form>
-                {whError && !bulkUploading && (
-                  <p className="mt-4 text-xs font-bold text-red-500 text-center uppercase tracking-widest">{whError}</p>
-                )}
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Nodes Sub-modal */}
+      {showImportModal && isAdmin && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-60 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-sm w-full shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-100">
+              <div>
+                <h3 className="text-base font-bold text-black flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4" /> Bulk Import Nodes
+                </h3>
+                <p className="text-xs text-zinc-400 font-medium mt-0.5">{selectedOrg?.name}</p>
               </div>
-
-              {isAdmin && (
-                <div className="lg:col-span-1 p-5 sm:p-8 border border-zinc-200 bg-white rounded-3xl self-start">
-                  <h4 className="text-xs font-bold uppercase tracking-widest mb-8 flex items-center text-zinc-500">
-                    <FileSpreadsheet className="w-4 h-4 mr-3 text-black" /> Bulk Import Nodes
-                  </h4>
-                  <div className="p-6 border border-dashed border-zinc-200 bg-zinc-50/50 rounded-2xl text-center">
-                    <input
-                      type="file"
-                      id="bulk-upload-wh"
-                      className="hidden"
-                      accept=".xlsx, .xls, .csv"
-                      onChange={handleBulkUpload}
-                      disabled={bulkUploading}
-                    />
-                    <label
-                      htmlFor="bulk-upload-wh"
-                      className={`w-full py-8 border-2 border-white bg-white rounded-xl flex flex-col items-center justify-center font-bold text-xs cursor-pointer hover:border-black transition-all ${bulkUploading ? 'opacity-50 cursor-wait' : ''}`}
-                    >
-                      <Upload
-                        className={`w-6 h-6 mb-2 ${bulkUploading ? 'animate-bounce text-zinc-300' : 'text-zinc-200'}`}
-                      />
-                      {bulkUploading ? 'Processing...' : 'Upload Data Sheet'}
-                    </label>
-
-                    <div className="mt-4">
-                      <a
-                        href="/templates/warehouse_template.csv"
-                        download
-                        className="text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-black transition-colors flex items-center justify-center"
-                      >
-                        <FileSpreadsheet className="w-3 h-3 mr-1.5" />
-                        Sample Template
-                      </a>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="p-2 text-zinc-400 hover:text-black hover:bg-zinc-100 rounded-xl transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="border border-dashed border-zinc-200 bg-zinc-50/50 rounded-2xl p-6 text-center">
+                <input
+                  type="file"
+                  id="bulk-upload-wh"
+                  className="hidden"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleBulkUpload}
+                  disabled={bulkUploading}
+                />
+                <label
+                  htmlFor="bulk-upload-wh"
+                  className={`flex flex-col items-center justify-center gap-2 cursor-pointer py-4 ${bulkUploading ? 'opacity-50 cursor-wait' : ''}`}
+                >
+                  <Upload className={`w-8 h-8 ${bulkUploading ? 'animate-bounce text-zinc-300' : 'text-zinc-300'}`} />
+                  <span className="text-sm font-bold text-zinc-700">{bulkUploading ? 'Processing…' : 'Click to upload spreadsheet'}</span>
+                  <span className="text-xs text-zinc-400 font-medium">.xlsx, .xls or .csv</span>
+                </label>
+              </div>
+              <a
+                href="/templates/warehouse_template.csv"
+                download
+                className="flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black transition-colors"
+              >
+                <FileSpreadsheet className="w-3 h-3" /> Download Sample Template
+              </a>
+              {bulkSummary && (
+                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-black mb-3">Import Result</p>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="p-3 bg-emerald-50 rounded-xl text-center">
+                      <p className="text-[8px] font-bold text-emerald-600 uppercase mb-1">Success</p>
+                      <p className="text-2xl font-black text-emerald-700">{bulkSummary.success}</p>
                     </div>
-
-                    {bulkSummary && (
-                      <div className="mt-6 p-4 bg-white rounded-xl border border-zinc-100 shadow-sm text-left">
-                        <h5 className="text-[9px] font-black uppercase tracking-widest text-black mb-3">
-                          Result Summary
-                        </h5>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="p-2 bg-green-50 rounded-xl">
-                            <p className="text-[8px] font-bold text-green-600 uppercase">Success</p>
-                            <p className="text-lg font-bold text-green-700">{bulkSummary.success}</p>
-                          </div>
-                          <div className="p-2 bg-zinc-50 rounded-xl">
-                            <p className="text-[8px] font-bold text-zinc-400 uppercase">Skipped</p>
-                            <p className="text-lg font-bold text-zinc-500">{bulkSummary.skipped}</p>
-                          </div>
-                        </div>
-                        {bulkSummary.errors && bulkSummary.errors.length > 0 && (
-                          <div className="mt-3 max-h-24 overflow-y-auto custom-scrollbar">
-                            {bulkSummary.errors.slice(0, 3).map((err: string, i: number) => (
-                              <p key={i} className="text-[8px] text-red-500 font-bold uppercase truncate">
-                                {err}
-                              </p>
-                            ))}
-                            {bulkSummary.errors.length > 3 && (
-                              <p className="text-[8px] text-zinc-400 font-bold uppercase mt-1">
-                                +{bulkSummary.errors.length - 3} more errors
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {whError && bulkUploading && (
-                      <p className="mt-4 text-xs font-bold text-red-500 text-center uppercase tracking-widest">
-                        {whError}
-                      </p>
-                    )}
+                    <div className="p-3 bg-white rounded-xl text-center border border-zinc-100">
+                      <p className="text-[8px] font-bold text-zinc-400 uppercase mb-1">Skipped</p>
+                      <p className="text-2xl font-black text-zinc-500">{bulkSummary.skipped}</p>
+                    </div>
                   </div>
+                  {bulkSummary.errors?.length > 0 && (
+                    <div className="max-h-20 overflow-y-auto space-y-1">
+                      {bulkSummary.errors.slice(0, 3).map((err: string, i: number) => (
+                        <p key={i} className="text-[8px] text-red-500 font-bold uppercase truncate">{err}</p>
+                      ))}
+                      {bulkSummary.errors.length > 3 && (
+                        <p className="text-[8px] text-zinc-400 font-bold uppercase">+{bulkSummary.errors.length - 3} more</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
+              {whError && bulkUploading && (
+                <p className="text-xs font-bold text-red-500 text-center uppercase tracking-widest">{whError}</p>
+              )}
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="w-full py-3 border border-zinc-200 text-black font-bold text-sm rounded-xl hover:bg-zinc-50 transition-all"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

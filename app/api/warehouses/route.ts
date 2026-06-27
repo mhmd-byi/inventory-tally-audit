@@ -3,6 +3,9 @@ import dbConnect from '@/lib/db'
 import Warehouse from '@/models/Warehouse'
 import User from '@/models/User'
 import { auth } from '@/lib/auth'
+import '@/models/Product'
+import '@/models/Audit'
+import mongoose from 'mongoose'
 
 export async function GET(request: Request) {
   try {
@@ -75,7 +78,47 @@ export async function GET(request: Request) {
 
     const warehouses = await Warehouse.find(query).populate('organization').sort({ name: 1 })
 
-    return NextResponse.json(warehouses)
+    if (!warehouses.length) return NextResponse.json([])
+
+    const Product = mongoose.models.Product
+    const Audit = mongoose.models.Audit
+    const warehouseIds = warehouses.map((w: any) => w._id)
+
+    const [productCounts, auditedCounts] = await Promise.all([
+      Product.aggregate([
+        { $match: { warehouse: { $in: warehouseIds } } },
+        { $group: { _id: '$warehouse', total: { $sum: 1 } } },
+      ]),
+      Audit.aggregate([
+        { $match: { warehouse: { $in: warehouseIds } } },
+        { $lookup: { from: 'warehouses', localField: 'warehouse', foreignField: '_id', as: 'wh' } },
+        { $unwind: '$wh' },
+        {
+          $match: {
+            $expr: { $gte: ['$createdAt', { $ifNull: ['$wh.auditInitiatedAt', new Date(0)] }] },
+          },
+        },
+        { $group: { _id: { wh: '$warehouse', prod: '$product' } } },
+        { $group: { _id: '$_id.wh', audited: { $sum: 1 } } },
+      ]),
+    ])
+
+    const productMap: Record<string, number> = Object.fromEntries(
+      productCounts.map((p: any) => [p._id.toString(), p.total])
+    )
+    const auditedMap: Record<string, number> = Object.fromEntries(
+      auditedCounts.map((a: any) => [a._id.toString(), a.audited])
+    )
+
+    const result = warehouses.map((w: any) => {
+      const obj = w.toObject()
+      const id = w._id.toString()
+      obj.totalProducts = productMap[id] ?? 0
+      obj.auditedProducts = auditedMap[id] ?? 0
+      return obj
+    })
+
+    return NextResponse.json(result)
   } catch (error: any) {
     console.error('Error fetching warehouses:', error)
     return NextResponse.json({ error: 'Failed to fetch warehouses' }, { status: 500 })

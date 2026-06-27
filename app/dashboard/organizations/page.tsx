@@ -41,6 +41,9 @@ interface Warehouse {
   location?: string
   address?: string
   status: string
+  auditStatus?: 'not_started' | 'in_progress' | 'completed'
+  totalProducts?: number
+  auditedProducts?: number
   checklistQuestions?: { category: string; question: string; responseType: string; order: number }[]
 }
 
@@ -567,7 +570,7 @@ export default function CompaniesPage() {
                         key={wh._id}
                         className="p-5 border border-zinc-100 bg-zinc-50/10 rounded-2xl flex justify-between items-center group hover:border-black transition-colors"
                       >
-                        <div>
+                        <div className="min-w-0 flex-1 mr-3">
                           <p className="font-bold text-sm">{wh.name}</p>
                           <div className="flex flex-col text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-1 gap-0.5">
                             <div className="flex items-center">
@@ -579,6 +582,26 @@ export default function CompaniesPage() {
                               </div>
                             )}
                           </div>
+                          {/* Audit progress */}
+                          {(wh.totalProducts ?? 0) > 0 && (() => {
+                            const total = wh.totalProducts!
+                            const audited = wh.auditedProducts ?? 0
+                            const pct = Math.round((audited / total) * 100)
+                            return (
+                              <div className="mt-2.5">
+                                <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest text-zinc-400 mb-1">
+                                  <span>{audited}/{total} audited</span>
+                                  <span className={pct === 100 ? 'text-emerald-500' : ''}>{pct}%</span>
+                                </div>
+                                <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-black' : 'bg-zinc-200'}`}
+                                    style={{ width: `${Math.max(pct, pct > 0 ? 3 : 0)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })()}
                         </div>
                         <div className="flex items-center gap-2">
                           <button

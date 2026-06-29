@@ -87,6 +87,7 @@ export async function GET(request: Request) {
           bookStockValue: stock ? (stock as any).bookStockValue : product.bookStockValue || 0,
           lastAuditDate: stock ? stock.lastAuditDate : audit ? audit.latestAudit.createdAt : null,
           lastAuditValue: audit ? audit.latestAudit.physicalQuantity : null,
+          lastAuditNotes: audit ? (audit.latestAudit.notes ?? null) : null,
           stockId: stock ? stock._id : null,
         }
       })

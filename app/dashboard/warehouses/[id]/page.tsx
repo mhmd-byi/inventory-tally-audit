@@ -45,6 +45,7 @@ interface InventoryItem {
   bookStockValue: number
   lastAuditDate: string | null
   lastAuditValue: number | null
+  lastAuditNotes: string | null
   stockId: string | null
 }
 
@@ -92,7 +93,7 @@ export default function WarehouseAuditPage() {
 
   // Local state for inputs
   const [inputs, setInputs] = useState<{
-    [productId: string]: { systemVal: string; auditVal: string; bookStockVal: string; bookStockValue: string }
+    [productId: string]: { systemVal: string; auditVal: string; bookStockVal: string; bookStockValue: string; notes: string }
   }>({})
 
   // Add Quantity Modal
@@ -257,6 +258,7 @@ export default function WarehouseAuditPage() {
         initialInputs[item.product._id] = {
           systemVal: item.quantity.toString(),
           auditVal: isCurrentAudit ? (item.lastAuditValue !== null ? item.lastAuditValue.toString() : '0') : '0',
+          notes: isCurrentAudit ? (item.lastAuditNotes ?? '') : '',
           bookStockVal:
             item.bookStock !== undefined ? item.bookStock.toString() : (item.product.bookStock || 0).toString(),
           bookStockValue:
@@ -305,22 +307,16 @@ export default function WarehouseAuditPage() {
 
   const handleInputChange = (
     productId: string,
-    type: 'system' | 'audit' | 'bookStock' | 'bookStockValue',
+    type: 'system' | 'audit' | 'bookStock' | 'bookStockValue' | 'notes',
     value: string
   ) => {
-    setInputs((prev) => ({
-      ...prev,
-      [productId]: {
-        ...prev[productId],
-        [type === 'system'
-          ? 'systemVal'
-          : type === 'audit'
-            ? 'auditVal'
-            : type === 'bookStock'
-              ? 'bookStockVal'
-              : 'bookStockValue']: value,
-      },
-    }))
+    const key =
+      type === 'system' ? 'systemVal'
+      : type === 'audit' ? 'auditVal'
+      : type === 'bookStock' ? 'bookStockVal'
+      : type === 'notes' ? 'notes'
+      : 'bookStockValue'
+    setInputs((prev) => ({ ...prev, [productId]: { ...prev[productId], [key]: value } }))
   }
 
   const handleAddQuantitySubmit = async (e: React.FormEvent) => {
@@ -439,6 +435,9 @@ export default function WarehouseAuditPage() {
         body.bookStockValue = Number(val)
       } else {
         body.quantity = Number(val)
+        if (target === 'audit') {
+          body.notes = inputs[productId]?.notes ?? ''
+        }
       }
 
       const res = await fetch('/api/inventory', {
@@ -943,31 +942,49 @@ export default function WarehouseAuditPage() {
               )}
 
               {isAuditor && (
-                <div className="flex items-end gap-2 mb-2">
-                  <div className="flex-1">
-                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Physical Count</div>
-                    <input
-                      type="number"
-                      disabled={true}
-                      value={inputs[item.product._id]?.auditVal || ''}
-                      onChange={(e) => handleInputChange(item.product._id, 'audit', e.target.value)}
-                      className={`w-full px-3 py-2.5 border rounded-xl font-bold text-sm outline-none text-center transition-all ${
+                <>
+                  <div className="flex items-end gap-2 mb-2">
+                    <div className="flex-1">
+                      <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Physical Count</div>
+                      <input
+                        type="number"
+                        disabled={true}
+                        value={inputs[item.product._id]?.auditVal || ''}
+                        onChange={(e) => handleInputChange(item.product._id, 'audit', e.target.value)}
+                        className={`w-full px-3 py-2.5 border rounded-xl font-bold text-sm outline-none text-center transition-all ${
+                          warehouse?.auditStatus === 'in_progress'
+                            ? 'border-zinc-200 bg-white'
+                            : 'border-zinc-100 bg-zinc-50 text-zinc-400 opacity-60'
+                        }`}
+                        placeholder="Count"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAddQtyModal({ isOpen: true, productId: item.product._id, target: 'audit', valToAdd: '' })}
+                      disabled={warehouse?.auditStatus !== 'in_progress' || saveStatus[item.product._id] === 'saving'}
+                      className="p-2.5 bg-black text-white rounded-xl hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50 mb-0.5"
+                    >
+                      {saveStatus[item.product._id] === 'saving' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  <div className="mb-2">
+                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Comments</div>
+                    <textarea
+                      rows={2}
+                      disabled={warehouse?.auditStatus !== 'in_progress'}
+                      value={inputs[item.product._id]?.notes ?? ''}
+                      onChange={(e) => handleInputChange(item.product._id, 'notes', e.target.value)}
+                      onBlur={() => handleSave(item.product._id, 'audit')}
+                      placeholder="Add a note…"
+                      className={`w-full px-3 py-2 border rounded-xl text-sm outline-none resize-none transition-all ${
                         warehouse?.auditStatus === 'in_progress'
-                          ? 'border-zinc-200 bg-white'
+                          ? 'border-zinc-200 bg-white focus:border-black'
                           : 'border-zinc-100 bg-zinc-50 text-zinc-400 opacity-60'
                       }`}
-                      placeholder="Count"
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setAddQtyModal({ isOpen: true, productId: item.product._id, target: 'audit', valToAdd: '' })}
-                    disabled={warehouse?.auditStatus !== 'in_progress' || saveStatus[item.product._id] === 'saving'}
-                    className="p-2.5 bg-black text-white rounded-xl hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50 mb-0.5"
-                  >
-                    {saveStatus[item.product._id] === 'saving' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                  </button>
-                </div>
+                </>
               )}
 
               {saveStatus[item.product._id] === 'success' && (
@@ -1005,7 +1022,9 @@ export default function WarehouseAuditPage() {
                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-center w-48">
                   Auditor / Physical Count
                 </th>
-                {/* <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-right w-24">Status</th> */}
+                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-56">
+                  Comments
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
@@ -1130,7 +1149,6 @@ export default function WarehouseAuditPage() {
                     <div className="flex items-center justify-center space-x-2">
                       <input
                         type="number"
-                        // disabled={!isAuditor || warehouse?.auditStatus !== 'in_progress'}
                         disabled={true}
                         value={inputs[item.product._id]?.auditVal || ''}
                         onChange={(e) => handleInputChange(item.product._id, 'audit', e.target.value)}
@@ -1168,6 +1186,22 @@ export default function WarehouseAuditPage() {
                         </div>
                       )}
                     </div>
+                  </td>
+
+                  <td className="px-6 py-6">
+                    <textarea
+                      rows={2}
+                      disabled={!isAuditor || warehouse?.auditStatus !== 'in_progress'}
+                      value={inputs[item.product._id]?.notes ?? ''}
+                      onChange={(e) => handleInputChange(item.product._id, 'notes', e.target.value)}
+                      onBlur={() => handleSave(item.product._id, 'audit')}
+                      placeholder={isAuditor && warehouse?.auditStatus === 'in_progress' ? 'Add a comment…' : '—'}
+                      className={`w-full px-3 py-2 border rounded-lg text-sm outline-none resize-none transition-all ${
+                        isAuditor && warehouse?.auditStatus === 'in_progress'
+                          ? 'border-zinc-200 bg-white focus:border-black focus:ring-1 focus:ring-black/10'
+                          : 'border-transparent bg-transparent text-zinc-400 cursor-default'
+                      }`}
+                    />
                   </td>
 
                   {/* <td className="px-6 py-6 text-right">

@@ -344,8 +344,9 @@ export default function WarehouseAuditPage() {
     // 2. Clear modal
     setAddQtyModal({ isOpen: false, productId: null, target: null, valToAdd: '' })
 
-    // 3. Trigger Save to Backend
-    await handleSave(productId, target)
+    // 3. Trigger Save to Backend — pass newVal explicitly because setInputs above
+    //    hasn't committed yet when this runs (React batches state updates).
+    await handleSave(productId, target, newVal)
   }
 
   const handleDownloadReport = (format: 'xlsx' | 'csv' | 'pdf') => {
@@ -399,17 +400,22 @@ export default function WarehouseAuditPage() {
     setShowDownloadMenu(false)
   }
 
-  const handleSave = async (productId: string, target: 'system' | 'audit' | 'bookStock' | 'bookStockValue') => {
+  const handleSave = async (productId: string, target: 'system' | 'audit' | 'bookStock' | 'bookStockValue', explicitVal?: string) => {
+    // explicitVal lets callers (e.g. handleAddQuantitySubmit) bypass the stale-state read:
+    // React batches setInputs, so inputs[productId] still holds the old value when called
+    // in the same synchronous block as setInputs.
     const val =
-      target === 'system'
-        ? inputs[productId].systemVal
-        : target === 'audit'
-          ? inputs[productId].auditVal
-          : target === 'bookStock'
-            ? inputs[productId].bookStockVal
-            : inputs[productId].bookStockValue
+      explicitVal !== undefined
+        ? explicitVal
+        : target === 'system'
+          ? inputs[productId].systemVal
+          : target === 'audit'
+            ? inputs[productId].auditVal
+            : target === 'bookStock'
+              ? inputs[productId].bookStockVal
+              : inputs[productId].bookStockValue
 
-    if (val === '' && target === 'audit') return // Audit value can't be empty if saving as auditor
+    if (val === '' && target === 'audit') return
 
     setSaveStatus((prev) => ({ ...prev, [productId]: 'saving' }))
 

@@ -361,6 +361,7 @@ export default function WarehouseAuditPage() {
         Variance: (
           Number(input.bookStockVal || item.bookStock || 0) - Number(input.auditVal || 0)
         ).toString(),
+        Comments: input.notes || '',
       }
     })
 
